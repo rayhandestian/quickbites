@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/menu_model.dart';
-import '../services/mock_data_service.dart';
 
 class MenuProvider with ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<MenuModel> _menus = [];
   bool _isLoading = false;
 
@@ -28,16 +29,29 @@ class MenuProvider with ChangeNotifier {
     }
   }
 
-  // Load menus from mock data
+  // Load menus from Firestore
   Future<void> loadMenus() async {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Load mock data
-    _menus = MockDataService.getMockMenus();
+    try {
+      final querySnapshot = await _firestore.collection('menus').get();
+      
+      _menus = querySnapshot.docs.map((doc) {
+        return MenuModel(
+          id: doc.id,
+          name: doc['name'],
+          price: doc['price'],
+          stock: doc['stock'],
+          tenantId: doc['tenantId'],
+          category: doc['category'],
+        );
+      }).toList();
+    } catch (e) {
+      print('Error loading menus: $e');
+      // If there's an error, use an empty list
+      _menus = [];
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -48,11 +62,32 @@ class MenuProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Add to list
-    _menus.add(menu);
+    try {
+      final menuData = {
+        'name': menu.name,
+        'price': menu.price,
+        'stock': menu.stock,
+        'tenantId': menu.tenantId,
+        'category': menu.category,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      
+      final docRef = await _firestore.collection('menus').add(menuData);
+      
+      // Add to local list with the generated ID
+      final newMenu = MenuModel(
+        id: docRef.id,
+        name: menu.name,
+        price: menu.price,
+        stock: menu.stock,
+        tenantId: menu.tenantId,
+        category: menu.category,
+      );
+      
+      _menus.add(newMenu);
+    } catch (e) {
+      print('Error adding menu: $e');
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -63,13 +98,21 @@ class MenuProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Find and update menu
-    final index = _menus.indexWhere((menu) => menu.id == updatedMenu.id);
-    if (index != -1) {
-      _menus[index] = updatedMenu;
+    try {
+      await _firestore.collection('menus').doc(updatedMenu.id).update({
+        'name': updatedMenu.name,
+        'price': updatedMenu.price,
+        'stock': updatedMenu.stock,
+        'category': updatedMenu.category,
+      });
+      
+      // Update in local list
+      final index = _menus.indexWhere((menu) => menu.id == updatedMenu.id);
+      if (index != -1) {
+        _menus[index] = updatedMenu;
+      }
+    } catch (e) {
+      print('Error updating menu: $e');
     }
 
     _isLoading = false;
@@ -81,11 +124,14 @@ class MenuProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Remove from list
-    _menus.removeWhere((menu) => menu.id == menuId);
+    try {
+      await _firestore.collection('menus').doc(menuId).delete();
+      
+      // Remove from local list
+      _menus.removeWhere((menu) => menu.id == menuId);
+    } catch (e) {
+      print('Error deleting menu: $e');
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -96,14 +142,19 @@ class MenuProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    // Find and update menu stock
-    final index = _menus.indexWhere((menu) => menu.id == menuId);
-    if (index != -1) {
-      final updatedMenu = _menus[index].copyWith(stock: newStock);
-      _menus[index] = updatedMenu;
+    try {
+      await _firestore.collection('menus').doc(menuId).update({
+        'stock': newStock,
+      });
+      
+      // Update in local list
+      final index = _menus.indexWhere((menu) => menu.id == menuId);
+      if (index != -1) {
+        final updatedMenu = _menus[index].copyWith(stock: newStock);
+        _menus[index] = updatedMenu;
+      }
+    } catch (e) {
+      print('Error updating stock: $e');
     }
 
     _isLoading = false;
@@ -111,14 +162,22 @@ class MenuProvider with ChangeNotifier {
   }
 
   // Decrease stock when order is placed
-  void decreaseStock(String menuId, int quantity) {
+  Future<void> decreaseStock(String menuId, int quantity) async {
     final index = _menus.indexWhere((menu) => menu.id == menuId);
     if (index != -1) {
       final currentStock = _menus[index].stock;
       if (currentStock >= quantity) {
-        final updatedMenu = _menus[index].copyWith(stock: currentStock - quantity);
-        _menus[index] = updatedMenu;
-        notifyListeners();
+        try {
+          await _firestore.collection('menus').doc(menuId).update({
+            'stock': FieldValue.increment(-quantity),
+          });
+          
+          final updatedMenu = _menus[index].copyWith(stock: currentStock - quantity);
+          _menus[index] = updatedMenu;
+          notifyListeners();
+        } catch (e) {
+          print('Error decreasing stock: $e');
+        }
       }
     }
   }
