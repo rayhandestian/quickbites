@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import '../models/tenant_model.dart';
 import '../utils/constants.dart';
 import 'package:bcrypt/bcrypt.dart';
 
@@ -73,7 +74,7 @@ class AuthService with ChangeNotifier {
   }
 
   // Register new user
-  Future<Map<String, dynamic>> register(String name, String email, String password, String role) async {
+  Future<Map<String, dynamic>> register(String name, String email, String password, String role, {String? storeName}) async {
     _isLoading = true;
     notifyListeners();
 
@@ -96,20 +97,35 @@ class AuthService with ChangeNotifier {
         'email': email,
         'passwordHash': _hashPassword(password),
         'role': role,
-        'storeName': role == UserRoles.seller ? name : null,
+        'storeName': role == UserRoles.seller ? (storeName ?? name) : null,
         'createdAt': FieldValue.serverTimestamp(),
       };
       
       final docRef = await _firestore.collection('users').add(userData);
+      final userId = docRef.id;
       
       // Set current user
       _currentUser = UserModel(
-        id: docRef.id,
+        id: userId,
         name: name,
         email: email,
         role: role,
-        storeName: role == UserRoles.seller ? name : null,
+        storeName: role == UserRoles.seller ? (storeName ?? name) : null,
       );
+
+      // If registering as a seller, create a tenant automatically
+      if (role == UserRoles.seller) {
+        final tenantName = storeName ?? name;
+        
+        final tenantData = {
+          'name': tenantName,
+          'sellerId': userId,
+          'description': 'Tenant for $tenantName',
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        
+        await _firestore.collection('tenants').add(tenantData);
+      }
       
       _isLoading = false;
       notifyListeners();

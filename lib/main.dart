@@ -9,6 +9,7 @@ import 'providers/order_provider.dart';
 import 'providers/tenant_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'utils/theme.dart';
+import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,8 +68,74 @@ class MyApp extends StatelessWidget {
         title: 'quickbites ',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.getTheme(),
-        home: const WelcomeScreen(),
+        home: const InitScreen(),
       ),
     );
+  }
+}
+
+class InitScreen extends StatefulWidget {
+  const InitScreen({Key? key}) : super(key: key);
+
+  @override
+  State<InitScreen> createState() => _InitScreenState();
+}
+
+class _InitScreenState extends State<InitScreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    final tenantProvider = Provider.of<TenantProvider>(context, listen: false);
+    final menuProvider = Provider.of<MenuProvider>(context, listen: false);
+    final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+
+    // Load initial data
+    await tenantProvider.loadTenants();
+    await menuProvider.loadMenus();
+    await orderProvider.loadOrders();
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryAccent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.fastfood,
+                  size: 60,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return const WelcomeScreen();
   }
 }

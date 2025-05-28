@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/menu_model.dart';
+import '../../models/tenant_model.dart';
 import '../../providers/menu_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/tenant_provider.dart';
@@ -50,10 +51,10 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final menuProvider = Provider.of<MenuProvider>(context);
+    final tenantProvider = Provider.of<TenantProvider>(context);
     
     final List<Widget> screens = [
-      _buildHomeContent(menuProvider),
-      const MenuScreen(),
+      _buildHomeContent(tenantProvider),
       const OrderTrackerScreen(),
       const ProfileScreen(),
     ];
@@ -62,8 +63,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
       appBar: AppBar(
         title: Text(
           _currentIndex == 0 ? 'quickbites ' : 
-          _currentIndex == 1 ? 'Menu' : 
-          _currentIndex == 2 ? 'Pesanan Saya' : 'Profil',
+          _currentIndex == 1 ? 'Pesanan Saya' : 'Profil',
         ),
         actions: [
           if (_currentIndex == 0)
@@ -89,10 +89,6 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu),
-            label: 'Menu',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.delivery_dining),
             label: 'Pesanan',
           ),
@@ -105,9 +101,8 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
     );
   }
 
-  Widget _buildHomeContent(MenuProvider menuProvider) {
-    final foodItems = menuProvider.getMenusByCategory(FoodCategories.food);
-    final beverageItems = menuProvider.getMenusByCategory(FoodCategories.beverage);
+  Widget _buildHomeContent(TenantProvider tenantProvider) {
+    final allTenants = tenantProvider.tenants;
 
     return SingleChildScrollView(
       child: Padding(
@@ -119,7 +114,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Cari menu...',
+                hintText: 'Cari tenant...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: AppColors.secondarySurface,
@@ -132,9 +127,9 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Food Category
+            // Featured Tenants
             const Text(
-              'Makanan',
+              'Tenant Populer',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -143,33 +138,19 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             ),
             const SizedBox(height: 12),
             
-            // Food Items
-            _buildCategoryGrid(foodItems),
+            // Tenant List
+            _buildTenantGrid(allTenants),
             const SizedBox(height: 24),
-
-            // Beverage Category
-            const Text(
-              'Minuman',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Beverage Items
-            _buildCategoryGrid(beverageItems),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCategoryGrid(List<MenuModel> items) {
-    if (items.isEmpty) {
+  Widget _buildTenantGrid(List<TenantModel> tenants) {
+    if (tenants.isEmpty) {
       return const Center(
-        child: Text('Tidak ada menu tersedia'),
+        child: Text('Tidak ada tenant tersedia'),
       );
     }
 
@@ -178,91 +159,80 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.75,
+        childAspectRatio: 0.85,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: items.length,
+      itemCount: tenants.length,
       itemBuilder: (context, index) {
-        final menu = items[index];
-        return _buildMenuCard(menu);
+        final tenant = tenants[index];
+        return _buildTenantCard(tenant);
       },
     );
   }
 
-  Widget _buildMenuCard(MenuModel menu) {
+  Widget _buildTenantCard(TenantModel tenant) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MenuScreen(menuId: menu.id),
+            builder: (context) => MenuScreen(tenantId: tenant.id),
           ),
         );
       },
       child: Card(
-        elevation: 0,
+        elevation: 1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Menu Image (placeholder)
-            Container(
-              height: 120,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.primaryAccent.withOpacity(0.2),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                  size: 40,
-                  color: AppColors.primaryAccent,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    menu.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tenant Image (placeholder)
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    formatCurrency(menu.price),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  width: double.infinity,
+                  child: const Center(
+                    child: Icon(
+                      Icons.store,
+                      size: 40,
                       color: AppColors.primaryAccent,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Stok: ${menu.stock}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: menu.stock > 0 ? Colors.green : Colors.red,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              // Tenant Name
+              Text(
+                tenant.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              // Tenant Description
+              Text(
+                tenant.description ?? '',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textPrimary.withOpacity(0.7),
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
