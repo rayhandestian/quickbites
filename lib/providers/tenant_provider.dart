@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tenant_model.dart';
-import '../services/mock_data_service.dart';
 
 class TenantProvider with ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<TenantModel> _tenants = [];
   bool _isLoading = false;
 
@@ -27,16 +28,27 @@ class TenantProvider with ChangeNotifier {
     }
   }
 
-  // Load tenants from mock data
+  // Load tenants from Firestore
   Future<void> loadTenants() async {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Load mock data
-    _tenants = MockDataService.getMockTenants();
+    try {
+      final querySnapshot = await _firestore.collection('tenants').get();
+      
+      _tenants = querySnapshot.docs.map((doc) {
+        return TenantModel(
+          id: doc.id,
+          name: doc['name'],
+          sellerId: doc['sellerId'],
+          description: doc['description'],
+        );
+      }).toList();
+    } catch (e) {
+      print('Error loading tenants: $e');
+      // If there's an error, use an empty list
+      _tenants = [];
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -47,11 +59,28 @@ class TenantProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Add to list
-    _tenants.add(tenant);
+    try {
+      final tenantData = {
+        'name': tenant.name,
+        'sellerId': tenant.sellerId,
+        'description': tenant.description,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      
+      final docRef = await _firestore.collection('tenants').add(tenantData);
+      
+      // Add to local list with the generated ID
+      final newTenant = TenantModel(
+        id: docRef.id,
+        name: tenant.name,
+        sellerId: tenant.sellerId,
+        description: tenant.description,
+      );
+      
+      _tenants.add(newTenant);
+    } catch (e) {
+      print('Error adding tenant: $e');
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -62,13 +91,19 @@ class TenantProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Find and update tenant
-    final index = _tenants.indexWhere((tenant) => tenant.id == updatedTenant.id);
-    if (index != -1) {
-      _tenants[index] = updatedTenant;
+    try {
+      await _firestore.collection('tenants').doc(updatedTenant.id).update({
+        'name': updatedTenant.name,
+        'description': updatedTenant.description,
+      });
+      
+      // Update in local list
+      final index = _tenants.indexWhere((tenant) => tenant.id == updatedTenant.id);
+      if (index != -1) {
+        _tenants[index] = updatedTenant;
+      }
+    } catch (e) {
+      print('Error updating tenant: $e');
     }
 
     _isLoading = false;

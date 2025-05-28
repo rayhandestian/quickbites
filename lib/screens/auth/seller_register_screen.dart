@@ -5,55 +5,60 @@ import '../../utils/constants.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/loading_overlay.dart';
-import '../buyer/buyer_home_screen.dart';
 import '../seller/seller_home_screen.dart';
-import 'register_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+class SellerRegisterScreen extends StatefulWidget {
+  const SellerRegisterScreen({Key? key}) : super(key: key);
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SellerRegisterScreen> createState() => _SellerRegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SellerRegisterScreenState extends State<SellerRegisterScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _storeNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _storeNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() async {
+  void _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       final authService = Provider.of<AuthService>(context, listen: false);
 
-      final success = await authService.login(
+      final result = await authService.register(
+        _nameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text,
+        UserRoles.seller, // Register as seller
+        storeName: _storeNameController.text.trim(),
       );
 
-      if (success && mounted) {
-        // Redirect based on user role
-        if (authService.isSeller) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const SellerHomeScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const BuyerHomeScreen()),
-          );
-        }
+      if (result['success'] && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SellerHomeScreen()),
+        );
       } else if (mounted) {
+        String errorMessage = 'Registrasi gagal.';
+        
+        if (result['message'] != null) {
+          errorMessage = result['message'].toString();
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login gagal. Silakan coba lagi.'),
+          SnackBar(
+            content: Text(errorMessage),
             backgroundColor: AppColors.error,
           ),
         );
@@ -67,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: const Text('Register Penjual'),
       ),
       body: LoadingOverlay(
         isLoading: authService.isLoading,
@@ -79,9 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 24),
                   const Text(
-                    'Selamat Datang',
+                    'Daftar Sebagai Penjual',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -90,13 +94,39 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Silakan login untuk melanjutkan',
+                    'Silakan isi data berikut untuk membuat akun penjual',
                     style: TextStyle(
                       fontSize: 16,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 32),
+                  AppTextField(
+                    label: 'Nama',
+                    hintText: 'Masukkan nama lengkap Anda',
+                    controller: _nameController,
+                    prefixIcon: Icons.person,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Nama tidak boleh kosong';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    label: 'Nama Toko',
+                    hintText: 'Masukkan nama toko Anda',
+                    controller: _storeNameController,
+                    prefixIcon: Icons.store,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Nama toko tidak boleh kosong';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   AppTextField(
                     label: 'Email',
                     hintText: 'Masukkan email Anda',
@@ -107,13 +137,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Email tidak boleh kosong';
                       }
+                      if (!value.contains('@')) {
+                        return 'Email tidak valid';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
                   AppTextField(
                     label: 'Password',
-                    hintText: 'Masukkan password Anda',
+                    hintText: 'Masukkan password',
                     controller: _passwordController,
                     obscureText: true,
                     prefixIcon: Icons.lock,
@@ -121,30 +154,50 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Password tidak boleh kosong';
                       }
+                      if (value.length < 6) {
+                        return 'Password minimal 6 karakter';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    label: 'Konfirmasi Password',
+                    hintText: 'Masukkan ulang password',
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    prefixIcon: Icons.lock_outline,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Konfirmasi password tidak boleh kosong';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Password tidak cocok';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 32),
                   AppButton(
-                    text: 'Login',
-                    onPressed: _handleLogin,
+                    text: 'Register Penjual',
+                    onPressed: _handleRegister,
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        'Belum punya akun? ',
+                        'Sudah punya akun penjual? ',
                         style: TextStyle(
                           color: AppColors.textPrimary,
                         ),
                       ),
                       GestureDetector(
                         onTap: () {
-                          Navigator.pop(context); // Go back to welcome screen
+                          Navigator.pop(context);
                         },
                         child: const Text(
-                          'Register',
+                          'Login',
                           style: TextStyle(
                             color: AppColors.primaryAccent,
                             fontWeight: FontWeight.bold,

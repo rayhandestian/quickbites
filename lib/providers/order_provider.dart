@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/order_model.dart';
-import '../services/mock_data_service.dart';
 import '../utils/constants.dart';
 
 class OrderProvider with ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<OrderModel> _orders = [];
   bool _isLoading = false;
 
@@ -29,16 +30,30 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  // Load orders from mock data
+  // Load orders from Firestore
   Future<void> loadOrders() async {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Load mock data
-    _orders = MockDataService.getMockOrders();
+    try {
+      final querySnapshot = await _firestore.collection('orders').get();
+      
+      _orders = querySnapshot.docs.map((doc) {
+        return OrderModel(
+          id: doc.id,
+          buyerId: doc['buyerId'],
+          menuId: doc['menuId'],
+          quantity: doc['quantity'],
+          customNote: doc['customNote'],
+          status: doc['status'],
+          timestamp: (doc['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        );
+      }).toList();
+    } catch (e) {
+      print('Error loading orders: $e');
+      // If there's an error, use an empty list
+      _orders = [];
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -54,28 +69,42 @@ class OrderProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // Create new order
-    final newOrderId = 'order${_orders.length + 1}';
-    final newOrder = OrderModel(
-      id: newOrderId,
-      buyerId: buyerId,
-      menuId: menuId,
-      quantity: quantity,
-      customNote: customNote,
-      status: OrderStatus.created,
-      timestamp: DateTime.now(),
-    );
-
-    // Add to list
-    _orders.add(newOrder);
-
-    _isLoading = false;
-    notifyListeners();
-
-    return newOrderId;
+    try {
+      final orderData = {
+        'buyerId': buyerId,
+        'menuId': menuId,
+        'quantity': quantity,
+        'customNote': customNote,
+        'status': OrderStatus.created,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+      
+      final docRef = await _firestore.collection('orders').add(orderData);
+      final orderId = docRef.id;
+      
+      // Add to local list
+      final newOrder = OrderModel(
+        id: orderId,
+        buyerId: buyerId,
+        menuId: menuId,
+        quantity: quantity,
+        customNote: customNote,
+        status: OrderStatus.created,
+        timestamp: DateTime.now(),
+      );
+      
+      _orders.add(newOrder);
+      
+      _isLoading = false;
+      notifyListeners();
+      
+      return orderId;
+    } catch (e) {
+      print('Error adding order: $e');
+      _isLoading = false;
+      notifyListeners();
+      return '';
+    }
   }
 
   // Update order status
@@ -83,14 +112,19 @@ class OrderProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Find and update order
-    final index = _orders.indexWhere((order) => order.id == orderId);
-    if (index != -1) {
-      final updatedOrder = _orders[index].copyWith(status: newStatus);
-      _orders[index] = updatedOrder;
+    try {
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': newStatus,
+      });
+      
+      // Update in local list
+      final index = _orders.indexWhere((order) => order.id == orderId);
+      if (index != -1) {
+        final updatedOrder = _orders[index].copyWith(status: newStatus);
+        _orders[index] = updatedOrder;
+      }
+    } catch (e) {
+      print('Error updating order status: $e');
     }
 
     _isLoading = false;
