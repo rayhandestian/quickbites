@@ -3,14 +3,18 @@ import 'dart:convert';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class CloudinaryService {
-  // Cloudinary cloud name and upload preset (create these in your Cloudinary dashboard)
-  static const String _cloudName = 'quickbites ';
-  static const String _uploadPreset = 'quickbites ';
+  // Get Cloudinary credentials from .env file
+  final String _cloudName = dotenv.get('CLOUDINARY_CLOUD_NAME', fallback: '');
+  final String _uploadPreset = dotenv.get('CLOUDINARY_UPLOAD_PRESET', fallback: '');
+  late final CloudinaryPublic cloudinary;
 
-  // Initialize the Cloudinary instance
-  final cloudinary = CloudinaryPublic(_cloudName, _uploadPreset, cache: false);
+  CloudinaryService() {
+    // Initialize the Cloudinary instance
+    cloudinary = CloudinaryPublic(_cloudName, _uploadPreset, cache: false);
+  }
 
   // Test Cloudinary connectivity
   Future<bool> testCloudinaryConnection() async {

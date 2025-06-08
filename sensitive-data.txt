@@ -1,0 +1,6 @@
+quickbites 
+quickbites 
+[appID]
+quickbites 
+quickbites .firebasestorage.app
+quickbites  

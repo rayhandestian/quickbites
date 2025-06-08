@@ -48,6 +48,7 @@ dependencies:
   cloudinary_public: ^0.21.0 # For Cloudinary integration
   http: ^1.1.0              # For HTTP requests
   cached_network_image: ^3.3.0 # For caching and displaying network images
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
