@@ -17,7 +17,7 @@ From your dashboard:
    - Scroll down to "Upload presets"
    - Click "Add upload preset"
    - Set "Signing Mode" to "Unsigned" (for this simple implementation)
-   - Name your preset (e.g., "quickbites _preset")
+   - Name your preset (e.g., "quickbites_preset")
    - Save the preset
 
 ## 3. Configure the App

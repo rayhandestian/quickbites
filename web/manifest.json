@@ -1,6 +1,6 @@
 {
-    "name": "quickbites ",
-    "short_name": "quickbites ",
+    "name": "quickbites",
+    "short_name": "quickbites",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

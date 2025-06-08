@@ -38,20 +38,20 @@ class DefaultFirebaseOptions {
     if (defaultTargetPlatform == TargetPlatform.android) {
       // Android
       return const FirebaseOptions(
-        apiKey: 'quickbites ',
-        appId: '[appID]',
-        messagingSenderId: 'quickbites ',
-        projectId: 'quickbites ',
-        storageBucket: 'quickbites .firebasestorage.app',
+        apiKey: 'FILL YOUR CREDENTIALS',
+        appId: '1:FILL YOUR CREDENTIALS:android:d72ea5035948bc175d4d69',
+        messagingSenderId: 'FILL YOUR CREDENTIALS',
+        projectId: 'FILL YOUR CREDENTIALS ',
+        storageBucket: 'FILL YOUR CREDENTIALS .firebasestorage.app',
       );
     } else {
       // Default to Android configuration
       return const FirebaseOptions(
-        apiKey: 'quickbites ',
-        appId: '[appID]',
-        messagingSenderId: 'quickbites ',
-        projectId: 'quickbites ',
-        storageBucket: 'quickbites .firebasestorage.app',
+        apiKey: 'FILL YOUR CREDENTIALS',
+        appId: '1:FILL YOUR CREDENTIALS:android:d72ea5035948bc175d4d69',
+        messagingSenderId: 'FILL YOUR CREDENTIALS',
+        projectId: 'FILL YOUR CREDENTIALS ',
+        storageBucket: 'FILL YOUR CREDENTIALS .firebasestorage.app',
       );
     }
   }

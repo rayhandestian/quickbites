@@ -1,6 +1,6 @@
-quickbites 
-quickbites 
-[appID]
-quickbites 
-quickbites .firebasestorage.app
-quickbites  
+FILL YOUR CREDENTIALS
+FILL YOUR CREDENTIALS
+1:FILL YOUR CREDENTIALS:android:d72ea5035948bc175d4d69
+FILL YOUR CREDENTIALS 
+FILL YOUR CREDENTIALS .firebasestorage.app
+YOUR_CLOUD_NAME 

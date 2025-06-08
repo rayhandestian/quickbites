@@ -1,4 +1,4 @@
-package com.example.quickbites 
+package com.example.quickbites
 
 import io.flutter.embedding.android.FlutterActivity
 

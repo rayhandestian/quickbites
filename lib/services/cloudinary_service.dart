@@ -110,7 +110,7 @@ class CloudinaryService {
       }
       
       // Use folder or default
-      final folderPath = folder ?? 'quickbites ';
+      final folderPath = folder ?? 'quickbites';
       debugPrint('Using folder: $folderPath');
       
       // For better reliability, use direct upload first (more control over the process)
