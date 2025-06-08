@@ -42,6 +42,9 @@ dependencies:
   intl: ^0.19.0             # For formatting (dates, currency)
   google_fonts: ^6.1.0      # For using Google Fonts
   flutter_svg: ^2.0.10+1    # For SVG images
+  image_picker: ^1.0.7      # For picking images from gallery/camera
+  cloudinary_public: ^0.21.0 # For Cloudinary integration
+  flutter_dotenv: ^5.1.0    # For accessing .env variables
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +71,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
+    - .env
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

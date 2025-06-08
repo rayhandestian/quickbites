@@ -13,6 +13,21 @@ class MenuScreen extends StatelessWidget {
   
   const MenuScreen({Key? key, this.menuId, this.tenantId}) : super(key: key);
 
+  // Helper method to check if an image URL exists and is valid
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    
+    // Basic URL validation
+    final validUrl = Uri.tryParse(url);
+    if (validUrl == null || !validUrl.isAbsolute) {
+      return false;
+    }
+    
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final menuProvider = Provider.of<MenuProvider>(context);
@@ -173,7 +188,7 @@ class MenuScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Menu Image (placeholder)
+              // Menu Image
               Container(
                 height: 200,
                 width: double.infinity,
@@ -181,13 +196,38 @@ class MenuScreen extends StatelessWidget {
                   color: AppColors.primaryAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Center(
-                  child: Icon(
-                    menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                    size: 80,
-                    color: AppColors.primaryAccent,
-                  ),
-                ),
+                child: _isValidImageUrl(menu.imageUrl)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        menu.imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                            size: 80,
+                            color: AppColors.primaryAccent,
+                          );
+                        },
+                      ),
+                    )
+                  : Center(
+                      child: Icon(
+                        menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                        size: 80,
+                        color: AppColors.primaryAccent,
+                      ),
+                    ),
               ),
               const SizedBox(height: 24),
               
@@ -323,7 +363,7 @@ class MenuScreen extends StatelessWidget {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              // Menu Image (placeholder)
+              // Menu Image
               Container(
                 width: 70,
                 height: 70,
@@ -331,13 +371,38 @@ class MenuScreen extends StatelessWidget {
                   color: AppColors.primaryAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
-                  child: Icon(
-                    menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                    size: 30,
-                    color: AppColors.primaryAccent,
-                  ),
-                ),
+                child: _isValidImageUrl(menu.imageUrl)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        menu.imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                            size: 30,
+                            color: AppColors.primaryAccent,
+                          );
+                        },
+                      ),
+                    )
+                  : Center(
+                      child: Icon(
+                        menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                        size: 30,
+                        color: AppColors.primaryAccent,
+                      ),
+                    ),
               ),
               const SizedBox(width: 12),
               Expanded(

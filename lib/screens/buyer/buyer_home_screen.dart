@@ -22,6 +22,21 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   int _currentIndex = 0;
   final TextEditingController _searchController = TextEditingController();
   
+  // Helper method to check if an image URL exists and is valid
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    
+    // Basic URL validation
+    final validUrl = Uri.tryParse(url);
+    if (validUrl == null || !validUrl.isAbsolute) {
+      return false;
+    }
+    
+    return true;
+  }
+  
   @override
   void initState() {
     super.initState();
@@ -191,24 +206,50 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Tenant Image (placeholder)
+              // Tenant Image
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.primaryAccent.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  width: double.infinity,
-                  child: const Center(
-                    child: Icon(
-                      Icons.store,
-                      size: 40,
-                      color: AppColors.primaryAccent,
-                    ),
-                  ),
+                  child: _isValidImageUrl(tenant.imageUrl)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          tenant.imageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(
+                                Icons.store,
+                                size: 40,
+                                color: AppColors.primaryAccent,
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(
+                          Icons.store,
+                          size: 40,
+                          color: AppColors.primaryAccent,
+                        ),
+                      ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               // Tenant Name
               Text(
                 tenant.name,
