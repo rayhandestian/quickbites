@@ -12,14 +12,20 @@ import 'order_tracker_screen.dart';
 import 'profile_screen.dart';
 
 class BuyerHomeScreen extends StatefulWidget {
-  const BuyerHomeScreen({Key? key}) : super(key: key);
+  // Add initial tab index parameter
+  final int initialTabIndex;
+  
+  const BuyerHomeScreen({
+    Key? key, 
+    this.initialTabIndex = 0,
+  }) : super(key: key);
 
   @override
   State<BuyerHomeScreen> createState() => _BuyerHomeScreenState();
 }
 
 class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   final TextEditingController _searchController = TextEditingController();
   
   // Helper method to check if an image URL exists and is valid
@@ -40,6 +46,8 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize current index from widget parameter
+    _currentIndex = widget.initialTabIndex;
     // Load data when the screen is initialized
     _loadInitialData();
   }
@@ -60,6 +68,15 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Method to navigate to a specific tab
+  void navigateToTab(int index) {
+    if (mounted) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
 
   @override

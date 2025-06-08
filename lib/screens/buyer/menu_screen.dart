@@ -6,13 +6,29 @@ import '../../providers/menu_provider.dart';
 import '../../providers/tenant_provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/app_button.dart';
+import 'checkout_screen.dart';
 
-class MenuScreen extends StatelessWidget {
+class MenuScreen extends StatefulWidget {
   final String? menuId;
   final String? tenantId;
   
   const MenuScreen({Key? key, this.menuId, this.tenantId}) : super(key: key);
 
+  @override
+  State<MenuScreen> createState() => _MenuScreenState();
+}
+
+class _MenuScreenState extends State<MenuScreen> {
+  // Add state variables for quantity and note
+  int _quantity = 1;
+  final TextEditingController _noteController = TextEditingController();
+  
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+  
   // Helper method to check if an image URL exists and is valid
   bool _isValidImageUrl(String? url) {
     if (url == null || url.isEmpty) {
@@ -28,14 +44,32 @@ class MenuScreen extends StatelessWidget {
     return true;
   }
 
+  // Method to increment quantity
+  void _incrementQuantity(int stock) {
+    if (_quantity < stock) {
+      setState(() {
+        _quantity++;
+      });
+    }
+  }
+
+  // Method to decrement quantity
+  void _decrementQuantity() {
+    if (_quantity > 1) {
+      setState(() {
+        _quantity--;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final menuProvider = Provider.of<MenuProvider>(context);
     final tenantProvider = Provider.of<TenantProvider>(context);
     
-    if (menuId != null) {
+    if (widget.menuId != null) {
       // Detail view for a specific menu
-      final menu = menuProvider.getMenuById(menuId!);
+      final menu = menuProvider.getMenuById(widget.menuId!);
       
       if (menu == null) {
         return const Center(
@@ -46,10 +80,10 @@ class MenuScreen extends StatelessWidget {
       return _buildMenuDetail(context, menu);
     }
     
-    if (tenantId != null) {
+    if (widget.tenantId != null) {
       // List view of menus for a specific tenant
-      final tenant = tenantProvider.getTenantById(tenantId!);
-      final tenantMenus = menuProvider.getMenusByTenant(tenantId!);
+      final tenant = tenantProvider.getTenantById(widget.tenantId!);
+      final tenantMenus = menuProvider.getMenusByTenant(widget.tenantId!);
       
       if (tenant == null) {
         return const Center(
@@ -202,36 +236,19 @@ class MenuScreen extends StatelessWidget {
                       child: Image.network(
                         menu.imageUrl!,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                            size: 80,
-                            color: AppColors.primaryAccent,
-                          );
-                        },
                       ),
                     )
                   : Center(
                       child: Icon(
                         menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                        size: 80,
+                        size: 64,
                         color: AppColors.primaryAccent,
                       ),
                     ),
               ),
               const SizedBox(height: 24),
               
-              // Menu Name
+              // Menu Name and Price
               Text(
                 menu.name,
                 style: const TextStyle(
@@ -242,12 +259,11 @@ class MenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               
-              // Price
               Text(
                 formatCurrency(menu.price),
                 style: const TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                   color: AppColors.primaryAccent,
                 ),
               ),
@@ -264,7 +280,7 @@ class MenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               
-              // Quantity Selector (stub)
+              // Quantity Selector with working buttons
               const Text(
                 'Jumlah',
                 style: TextStyle(
@@ -277,16 +293,16 @@ class MenuScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    onPressed: () {},
+                    onPressed: menu.stock > 0 ? () => _decrementQuantity() : null,
                     icon: const Icon(Icons.remove_circle_outline),
-                    color: AppColors.primaryAccent,
+                    color: menu.stock > 0 ? AppColors.primaryAccent : Colors.grey,
                   ),
-                  const SizedBox(
+                  SizedBox(
                     width: 40,
                     child: Center(
                       child: Text(
-                        '1',
-                        style: TextStyle(
+                        '$_quantity',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -294,9 +310,9 @@ class MenuScreen extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () {},
+                    onPressed: menu.stock > 0 ? () => _incrementQuantity(menu.stock) : null,
                     icon: const Icon(Icons.add_circle_outline),
-                    color: AppColors.primaryAccent,
+                    color: _quantity < menu.stock ? AppColors.primaryAccent : Colors.grey,
                   ),
                 ],
               ),
@@ -313,6 +329,7 @@ class MenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               TextField(
+                controller: _noteController,
                 decoration: InputDecoration(
                   hintText: 'Contoh: Tidak pedas, tanpa es, dll.',
                   border: OutlineInputBorder(
@@ -329,14 +346,19 @@ class MenuScreen extends StatelessWidget {
               // Order Button
               AppButton(
                 text: 'Pesan Sekarang',
-                onPressed: () {
-                  // Navigate to checkout
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Fitur masih dalam pengembangan'),
+                onPressed: menu.stock > 0 ? () {
+                  // Navigate to checkout with current quantity and note
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CheckoutScreen(
+                        menuId: menu.id,
+                        quantity: _quantity,
+                        customNote: _noteController.text,
+                      ),
                     ),
                   );
-                },
+                } : () {},
               ),
             ],
           ),

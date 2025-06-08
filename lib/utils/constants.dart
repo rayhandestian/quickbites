@@ -17,9 +17,10 @@ class AppColors {
 
 // Order status constants
 class OrderStatus {
-  static const String created = 'dibuat';
-  static const String ready = 'siap';
-  static const String completed = 'selesai';
+  static const String sent = 'dikirim';    // Initial status when order is sent by buyer
+  static const String created = 'dibuat';  // When seller accepts the order
+  static const String ready = 'siap';      // When order is ready for pickup
+  static const String completed = 'selesai'; // When order is completed
 }
 
 // User roles

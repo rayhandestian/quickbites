@@ -23,7 +23,13 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    
+    // Load orders when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<OrderProvider>(context, listen: false).loadOrders();
+      Provider.of<MenuProvider>(context, listen: false).loadMenus();
+    });
   }
   
   @override
@@ -64,34 +70,40 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
     final allOrders = orderProvider.getOrdersByTenant(tenant.id, menuIds);
     
     // Filter orders by status
-    final pendingOrders = allOrders.where((order) => order.status == OrderStatus.created).toList();
+    final newOrders = allOrders.where((order) => order.status == OrderStatus.sent).toList();
+    final inProgressOrders = allOrders.where((order) => order.status == OrderStatus.created).toList();
     final readyOrders = allOrders.where((order) => order.status == OrderStatus.ready).toList();
     final completedOrders = allOrders.where((order) => order.status == OrderStatus.completed).toList();
     
-    return Column(
-      children: [
-        TabBar(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pesanan'),
+        automaticallyImplyLeading: false,
+        elevation: 0,
+        bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primaryAccent,
           unselectedLabelColor: AppColors.textPrimary.withOpacity(0.5),
           indicatorColor: AppColors.primaryAccent,
+          isScrollable: false,
+          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           tabs: const [
-            Tab(text: 'Pesanan Baru'),
-            Tab(text: 'Siap Diambil'),
+            Tab(text: 'Baru'),
+            Tab(text: 'Diproses'),
+            Tab(text: 'Siap'),
             Tab(text: 'Selesai'),
           ],
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildOrderList(context, pendingOrders, menuProvider, OrderStatus.created),
-              _buildOrderList(context, readyOrders, menuProvider, OrderStatus.ready),
-              _buildOrderList(context, completedOrders, menuProvider, OrderStatus.completed),
-            ],
-          ),
-        ),
-      ],
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildOrderList(context, newOrders, menuProvider, OrderStatus.sent),
+          _buildOrderList(context, inProgressOrders, menuProvider, OrderStatus.created),
+          _buildOrderList(context, readyOrders, menuProvider, OrderStatus.ready),
+          _buildOrderList(context, completedOrders, menuProvider, OrderStatus.completed),
+        ],
+      ),
     );
   }
   
@@ -103,31 +115,66 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
   ) {
     if (orders.isEmpty) {
       return Center(
-        child: Text('Tidak ada pesanan ${_getStatusText(status).toLowerCase()}'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _getStatusIcon(status),
+              size: 48,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tidak ada pesanan ${_getStatusText(status).toLowerCase()}',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        final order = orders[index];
-        final menu = menuProvider.getMenuById(order.menuId);
-        
-        if (menu == null) {
-          return const SizedBox.shrink();
-        }
-        
-        return _buildOrderCard(context, order, menu, status);
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Provider.of<OrderProvider>(context, listen: false).loadOrders();
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: orders.length,
+        itemBuilder: (context, index) {
+          final order = orders[index];
+          final menu = menuProvider.getMenuById(order.menuId);
+          
+          if (menu == null) {
+            return const SizedBox.shrink();
+          }
+          
+          return _buildOrderCard(context, order, menu, status);
+        },
+      ),
     );
   }
   
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case OrderStatus.sent:
+        return Icons.receipt_long;
+      case OrderStatus.created:
+        return Icons.restaurant;
+      case OrderStatus.ready:
+        return Icons.room_service;
+      case OrderStatus.completed:
+        return Icons.check_circle;
+      default:
+        return Icons.receipt;
+    }
+  }
+  
   Widget _buildOrderCard(BuildContext context, OrderModel order, MenuModel menu, String currentStatus) {
-    final orderProvider = Provider.of<OrderProvider>(context, listen: false);
-    
     return Card(
-      elevation: 0,
+      elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -137,12 +184,30 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Status indicator
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _getStatusColor(order.status).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _getStatusText(order.status),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: _getStatusColor(order.status),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
             // Order ID and Date
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Order #${order.id.substring(order.id.length - 4)}',
+                  'Nomor Urutan: ${order.id.substring(0, 2)}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -163,7 +228,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
             // Menu Item
             Row(
               children: [
-                // Menu Image (placeholder)
+                // Menu Image
                 Container(
                   height: 60,
                   width: 60,
@@ -228,53 +293,22 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
                 ),
               ),
             
-            const Divider(height: 32),
+            const Divider(height: 24),
             
-            // Status
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _getStatusText(order.status),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: _getStatusColor(order.status),
-                  ),
-                ),
-                if (currentStatus == OrderStatus.created)
-                  AppButton(
-                    text: 'Siap Diambil',
-                    onPressed: () {
-                      // Update order status to ready
-                      orderProvider.updateOrderStatus(order.id, OrderStatus.ready);
-                    },
-                    type: ButtonType.primary,
-                    isFullWidth: false,
-                    height: 40,
-                  ),
-              ],
-            ),
+            // Action Buttons
+            _buildOrderActions(context, order, currentStatus, menu),
           ],
         ),
       ),
     );
   }
   
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year.toString();
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-    
-    return '$day/$month/$year $hour:$minute';
-  }
-  
   String _getStatusText(String status) {
     switch (status) {
+      case OrderStatus.sent:
+        return 'Pesanan Baru';
       case OrderStatus.created:
-        return 'Pesanan Dibuat';
+        return 'Pesanan Diterima';
       case OrderStatus.ready:
         return 'Siap Diambil';
       case OrderStatus.completed:
@@ -286,14 +320,80 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
   
   Color _getStatusColor(String status) {
     switch (status) {
-      case OrderStatus.created:
+      case OrderStatus.sent:
         return Colors.orange;
-      case OrderStatus.ready:
+      case OrderStatus.created:
         return Colors.blue;
-      case OrderStatus.completed:
+      case OrderStatus.ready:
         return Colors.green;
+      case OrderStatus.completed:
+        return Colors.grey;
       default:
         return Colors.grey;
+    }
+  }
+
+  // Format date to Indonesian format
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    
+    return '$day/$month/$year $hour:$minute';
+  }
+
+  // Add this method to handle order actions based on status
+  Widget _buildOrderActions(BuildContext context, OrderModel order, String currentStatus, MenuModel menu) {
+    final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+    final menuProvider = Provider.of<MenuProvider>(context, listen: false);
+
+    if (currentStatus == OrderStatus.sent) {
+      return AppButton(
+        text: 'Terima Pesanan',
+        onPressed: () async {
+          // Update stock first
+          await menuProvider.updateStock(menu.id, menu.stock - order.quantity);
+          
+          // Then update order status
+          await orderProvider.updateOrderStatus(order.id, OrderStatus.created);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pesanan diterima')),
+          );
+        },
+      );
+    } else if (currentStatus == OrderStatus.created) {
+      return AppButton(
+        text: 'Siap Diambil',
+        onPressed: () async {
+          await orderProvider.updateOrderStatus(order.id, OrderStatus.ready);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pesanan siap diambil')),
+          );
+        },
+      );
+    } else if (currentStatus == OrderStatus.ready) {
+      return const Text(
+        'Menunggu pelanggan mengambil pesanan',
+        style: TextStyle(
+          fontSize: 14,
+          fontStyle: FontStyle.italic,
+          color: Colors.blue,
+        ),
+        textAlign: TextAlign.center,
+      );
+    } else {
+      return const Text(
+        'Pesanan selesai',
+        style: TextStyle(
+          fontSize: 14,
+          fontStyle: FontStyle.italic,
+          color: Colors.green,
+        ),
+        textAlign: TextAlign.center,
+      );
     }
   }
 } 

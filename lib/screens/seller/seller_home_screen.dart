@@ -74,13 +74,12 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: _currentIndex != 2 ? AppBar(
         title: Text(
           _currentIndex == 0 ? 'Dashboard Penjual' : 
-          _currentIndex == 1 ? 'Inventori' : 
-          _currentIndex == 2 ? 'Pesanan' : 'Profil',
+          _currentIndex == 1 ? 'Inventori' : 'Profil',
         ),
-      ),
+      ) : null,
       body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
