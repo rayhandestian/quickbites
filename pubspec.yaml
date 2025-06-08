@@ -42,6 +42,12 @@ dependencies:
   intl: ^0.19.0             # For formatting (dates, currency)
   google_fonts: ^6.1.0      # For using Google Fonts
   flutter_svg: ^2.0.10+1    # For SVG images
+  
+  # Added for image upload functionality
+  image_picker: ^1.0.4      # For picking images from gallery/camera
+  cloudinary_public: ^0.21.0 # For Cloudinary integration
+  http: ^1.1.0              # For HTTP requests
+  cached_network_image: ^3.3.0 # For caching and displaying network images
 
 dev_dependencies:
   flutter_test:

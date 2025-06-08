@@ -13,6 +13,7 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final Function(String)? onChanged;
   final bool readOnly;
+  final bool enabled;
 
   const AppTextField({
     Key? key,
@@ -27,6 +28,7 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.readOnly = false,
+    this.enabled = true,
   }) : super(key: key);
 
   @override
@@ -49,6 +51,7 @@ class AppTextField extends StatelessWidget {
           keyboardType: keyboardType,
           maxLength: maxLength,
           readOnly: readOnly,
+          enabled: enabled,
           validator: validator,
           onChanged: onChanged,
           style: const TextStyle(
@@ -62,8 +65,8 @@ class AppTextField extends StatelessWidget {
               fontSize: 16,
             ),
             filled: true,
-            fillColor: AppColors.secondarySurface,
-            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.primaryAccent) : null,
+            fillColor: enabled ? AppColors.secondarySurface : Colors.grey.shade200,
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: enabled ? AppColors.primaryAccent : Colors.grey) : null,
             suffix: suffix,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

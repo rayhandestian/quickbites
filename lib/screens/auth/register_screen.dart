@@ -39,6 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _emailController.text.trim(),
         _passwordController.text,
         UserRoles.buyer, // Register as buyer by default
+        context: context, // Pass context to load data after registration
       );
 
       if (result['success'] && mounted) {
