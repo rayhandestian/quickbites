@@ -24,6 +24,7 @@ class TenantProvider with ChangeNotifier {
     try {
       return _tenants.firstWhere((tenant) => tenant.sellerId == sellerId);
     } catch (e) {
+      print('Tenant not found for seller ID: $sellerId');
       return null;
     }
   }
@@ -37,13 +38,21 @@ class TenantProvider with ChangeNotifier {
       final querySnapshot = await _firestore.collection('tenants').get();
       
       _tenants = querySnapshot.docs.map((doc) {
+        final data = doc.data();
         return TenantModel(
           id: doc.id,
-          name: doc['name'],
-          sellerId: doc['sellerId'],
-          description: doc['description'],
+          name: data['name'] ?? '',
+          sellerId: data['sellerId'] ?? '',
+          description: data['description'],
+          imageUrl: data['imageUrl'],
         );
       }).toList();
+      
+      print('Loaded ${_tenants.length} tenants');
+      // Debug: print all tenant IDs and seller IDs
+      for (var tenant in _tenants) {
+        print('Tenant: ${tenant.id}, Seller: ${tenant.sellerId}, Name: ${tenant.name}');
+      }
     } catch (e) {
       print('Error loading tenants: $e');
       // If there's an error, use an empty list
@@ -67,6 +76,11 @@ class TenantProvider with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       };
       
+      // Add imageUrl if it exists
+      if (tenant.imageUrl != null) {
+        tenantData['imageUrl'] = tenant.imageUrl;
+      }
+      
       final docRef = await _firestore.collection('tenants').add(tenantData);
       
       // Add to local list with the generated ID
@@ -75,9 +89,11 @@ class TenantProvider with ChangeNotifier {
         name: tenant.name,
         sellerId: tenant.sellerId,
         description: tenant.description,
+        imageUrl: tenant.imageUrl,
       );
       
       _tenants.add(newTenant);
+      print('Added new tenant: ${newTenant.id}, Seller: ${newTenant.sellerId}');
     } catch (e) {
       print('Error adding tenant: $e');
     }
@@ -92,15 +108,23 @@ class TenantProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestore.collection('tenants').doc(updatedTenant.id).update({
+      final updateData = {
         'name': updatedTenant.name,
         'description': updatedTenant.description,
-      });
+      };
+      
+      // Add imageUrl if it exists
+      if (updatedTenant.imageUrl != null) {
+        updateData['imageUrl'] = updatedTenant.imageUrl;
+      }
+      
+      await _firestore.collection('tenants').doc(updatedTenant.id).update(updateData);
       
       // Update in local list
       final index = _tenants.indexWhere((tenant) => tenant.id == updatedTenant.id);
       if (index != -1) {
         _tenants[index] = updatedTenant;
+        print('Updated tenant: ${updatedTenant.id}');
       }
     } catch (e) {
       print('Error updating tenant: $e');

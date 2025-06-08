@@ -8,6 +8,21 @@ import 'menu_screen.dart';
 class TenantListScreen extends StatelessWidget {
   const TenantListScreen({Key? key}) : super(key: key);
 
+  // Helper method to check if an image URL exists and is valid
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    
+    // Basic URL validation
+    final validUrl = Uri.tryParse(url);
+    if (validUrl == null || !validUrl.isAbsolute) {
+      return false;
+    }
+    
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final tenantProvider = Provider.of<TenantProvider>(context);
@@ -49,7 +64,7 @@ class TenantListScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              // Tenant Image (placeholder)
+              // Tenant Image
               Container(
                 width: 80,
                 height: 80,
@@ -57,11 +72,36 @@ class TenantListScreen extends StatelessWidget {
                   color: AppColors.primaryAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.store,
-                  size: 40,
-                  color: AppColors.primaryAccent,
-                ),
+                child: _isValidImageUrl(tenant.imageUrl)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        tenant.imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.store,
+                            size: 40,
+                            color: AppColors.primaryAccent,
+                          );
+                        },
+                      ),
+                    )
+                  : const Icon(
+                      Icons.store,
+                      size: 40,
+                      color: AppColors.primaryAccent,
+                    ),
               ),
               const SizedBox(width: 16),
               Expanded(

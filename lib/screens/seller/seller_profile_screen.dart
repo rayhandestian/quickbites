@@ -1,15 +1,33 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:provider/provider.dart';
 import '../../models/tenant_model.dart';
 import '../../providers/tenant_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/cloudinary_service.dart';
 import '../../utils/constants.dart';
+import '../../utils/image_picker_util.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../welcome_screen.dart';
 
 class SellerProfileScreen extends StatelessWidget {
   const SellerProfileScreen({Key? key}) : super(key: key);
+
+  // Helper method to check if an image URL exists and is valid
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    
+    // Basic URL validation
+    final validUrl = Uri.tryParse(url);
+    if (validUrl == null || !validUrl.isAbsolute) {
+      return false;
+    }
+    
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,18 +54,55 @@ class SellerProfileScreen extends StatelessWidget {
             // Profile Avatar and Info
             Row(
               children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColors.primaryAccent,
-                  child: Text(
-                    user.name.isNotEmpty ? user.name[0].toUpperCase() : '',
-                    style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                // Display tenant image if available, otherwise show avatar with initial
+                _isValidImageUrl(tenant?.imageUrl)
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(40),
+                    child: Image.network(
+                      tenant!.imageUrl!,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryAccent.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: const Center(child: CircularProgressIndicator()),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return CircleAvatar(
+                          radius: 40,
+                          backgroundColor: AppColors.primaryAccent,
+                          child: Text(
+                            user.name.isNotEmpty ? user.name[0].toUpperCase() : '',
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : CircleAvatar(
+                    radius: 40,
+                    backgroundColor: AppColors.primaryAccent,
+                    child: Text(
+                      user.name.isNotEmpty ? user.name[0].toUpperCase() : '',
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -247,80 +302,199 @@ class SellerProfileScreen extends StatelessWidget {
   void _showEditStoreDialog(BuildContext context, TenantModel? tenant) {
     final nameController = TextEditingController(text: tenant?.name ?? '');
     final descriptionController = TextEditingController(text: tenant?.description ?? '');
-
+    
+    File? selectedImage;
+    bool imageChanged = false;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Informasi Toko'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppTextField(
-                label: 'Nama Toko',
-                hintText: 'Masukkan nama toko',
-                controller: nameController,
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                label: 'Deskripsi',
-                hintText: 'Masukkan deskripsi toko',
-                controller: descriptionController,
-                maxLength: 200,
-              ),
-            ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(tenant == null ? 'Buat Toko' : 'Edit Informasi Toko'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Image Picker
+                InkWell(
+                  onTap: () async {
+                    final image = await ImagePickerUtil.pickImage(context);
+                    if (image != null) {
+                      setState(() {
+                        selectedImage = image;
+                        imageChanged = true;
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 120,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondarySurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: imageChanged && selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              selectedImage!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : _isValidImageUrl(tenant?.imageUrl)
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  tenant!.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Center(
+                                      child: CircularProgressIndicator(
+                                        value: loadingProgress.expectedTotalBytes != null
+                                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                            : null,
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Center(
+                                      child: Icon(
+                                        Icons.store,
+                                        size: 40,
+                                        color: AppColors.primaryAccent,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            : const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 40,
+                                      color: AppColors.primaryAccent,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Tambahkan Foto Toko',
+                                      style: TextStyle(
+                                        color: AppColors.primaryAccent,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  controller: nameController,
+                  label: 'Nama Toko',
+                  hintText: 'Masukkan nama toko Anda',
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  controller: descriptionController,
+                  label: 'Deskripsi',
+                  hintText: 'Deskripsi singkat tentang toko Anda',
+                  maxLength: 200,
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final tenantProvider = Provider.of<TenantProvider>(context, listen: false);
+                final authService = Provider.of<AuthService>(context, listen: false);
+                
+                final name = nameController.text.trim();
+                final description = descriptionController.text.trim();
+                
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nama toko tidak boleh kosong')),
+                  );
+                  return;
+                }
+                
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const AlertDialog(
+                    content: Row(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(width: 16),
+                        Text('Menyimpan data...'),
+                      ],
+                    ),
+                  ),
+                );
+                
+                // Upload image if selected
+                String? imageUrl = tenant?.imageUrl;
+                if (imageChanged && selectedImage != null) {
+                  final cloudinaryService = CloudinaryService();
+                  imageUrl = await cloudinaryService.uploadImage(selectedImage!);
+                  
+                  if (imageUrl == null) {
+                    // Close loading dialog
+                    if (context.mounted) {
+                      Navigator.pop(context); // Close loading dialog
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Gagal mengunggah gambar. Coba lagi nanti.')),
+                      );
+                    }
+                    return;
+                  }
+                }
+                
+                if (tenant == null) {
+                  // Create new tenant
+                  final newTenant = TenantModel(
+                    id: 'tenant_${DateTime.now().millisecondsSinceEpoch}',
+                    name: name,
+                    sellerId: authService.currentUser!.id,
+                    description: description,
+                    imageUrl: imageUrl,
+                  );
+                  
+                  await tenantProvider.addTenant(newTenant);
+                } else {
+                  // Update existing tenant
+                  final updatedTenant = TenantModel(
+                    id: tenant.id,
+                    name: name,
+                    sellerId: tenant.sellerId,
+                    description: description,
+                    imageUrl: imageUrl,
+                  );
+                  
+                  await tenantProvider.updateTenant(updatedTenant);
+                }
+                
+                // Close loading dialog and tenant dialog
+                if (context.mounted) {
+                  Navigator.pop(context); // Close loading dialog
+                  Navigator.pop(context); // Close tenant dialog
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final tenantProvider = Provider.of<TenantProvider>(context, listen: false);
-              final authService = Provider.of<AuthService>(context, listen: false);
-              
-              final name = nameController.text.trim();
-              final description = descriptionController.text.trim();
-              
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Nama toko tidak boleh kosong')),
-                );
-                return;
-              }
-              
-              if (tenant == null) {
-                // Create new tenant
-                final newTenant = TenantModel(
-                  id: 'tenant_${DateTime.now().millisecondsSinceEpoch}',
-                  name: name,
-                  sellerId: authService.currentUser!.id,
-                  description: description,
-                );
-                
-                tenantProvider.addTenant(newTenant);
-              } else {
-                // Update existing tenant
-                final updatedTenant = TenantModel(
-                  id: tenant.id,
-                  name: name,
-                  sellerId: tenant.sellerId,
-                  description: description,
-                  imageUrl: tenant.imageUrl,
-                );
-                
-                tenantProvider.updateTenant(updatedTenant);
-              }
-              
-              Navigator.pop(context);
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
       ),
     );
   }

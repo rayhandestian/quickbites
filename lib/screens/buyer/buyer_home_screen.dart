@@ -207,47 +207,45 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Tenant Image
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryAccent.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: _isValidImageUrl(tenant.imageUrl)
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          tenant.imageUrl!,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(
-                                Icons.store,
-                                size: 40,
-                                color: AppColors.primaryAccent,
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : const Center(
-                        child: Icon(
-                          Icons.store,
-                          size: 40,
-                          color: AppColors.primaryAccent,
-                        ),
-                      ),
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryAccent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: _isValidImageUrl(tenant.imageUrl)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        tenant.imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.store,
+                            size: 40,
+                            color: AppColors.primaryAccent,
+                          );
+                        },
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(
+                        Icons.store,
+                        size: 40,
+                        color: AppColors.primaryAccent,
+                      ),
+                    ),
               ),
               const SizedBox(height: 12),
               // Tenant Name
