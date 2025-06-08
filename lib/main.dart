@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'providers/menu_provider.dart';
 import 'providers/order_provider.dart';
@@ -25,31 +26,6 @@ void main() async {
   }
   
   runApp(const MyApp());
-}
-
-// Default Firebase Options for platform-specific configuration
-class DefaultFirebaseOptions {
-  static FirebaseOptions get currentPlatform {
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      // Android
-      return const FirebaseOptions(
-        apiKey: 'quickbites ',
-        appId: '[appID]',
-        messagingSenderId: 'quickbites ',
-        projectId: 'quickbites ',
-        storageBucket: 'quickbites .firebasestorage.app',
-      );
-    } else {
-      // Default to Android configuration
-      return const FirebaseOptions(
-        apiKey: 'quickbites ',
-        appId: '[appID]',
-        messagingSenderId: 'quickbites ',
-        projectId: 'quickbites ',
-        storageBucket: 'quickbites .firebasestorage.app',
-      );
-    }
-  }
 }
 
 class MyApp extends StatelessWidget {
