@@ -45,6 +45,7 @@ class MenuProvider with ChangeNotifier {
           stock: doc['stock'],
           tenantId: doc['tenantId'],
           category: doc['category'],
+          imageUrl: doc['imageUrl'],
         );
       }).toList();
     } catch (e) {
@@ -72,6 +73,11 @@ class MenuProvider with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       };
       
+      // Add imageUrl if it exists
+      if (menu.imageUrl != null) {
+        menuData['imageUrl'] = menu.imageUrl as Object;
+      }
+      
       final docRef = await _firestore.collection('menus').add(menuData);
       
       // Add to local list with the generated ID
@@ -82,6 +88,7 @@ class MenuProvider with ChangeNotifier {
         stock: menu.stock,
         tenantId: menu.tenantId,
         category: menu.category,
+        imageUrl: menu.imageUrl,
       );
       
       _menus.add(newMenu);
@@ -99,12 +106,19 @@ class MenuProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestore.collection('menus').doc(updatedMenu.id).update({
+      final updateData = {
         'name': updatedMenu.name,
         'price': updatedMenu.price,
         'stock': updatedMenu.stock,
         'category': updatedMenu.category,
-      });
+      };
+      
+      // Add imageUrl if it exists
+      if (updatedMenu.imageUrl != null) {
+        updateData['imageUrl'] = updatedMenu.imageUrl as Object;
+      }
+      
+      await _firestore.collection('menus').doc(updatedMenu.id).update(updateData);
       
       // Update in local list
       final index = _menus.indexWhere((menu) => menu.id == updatedMenu.id);

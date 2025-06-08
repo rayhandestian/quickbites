@@ -41,9 +41,17 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Permission descriptions for image_picker -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to take pictures for menu items</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photos access to select images for menu items</string>
 </dict>
 </plist>

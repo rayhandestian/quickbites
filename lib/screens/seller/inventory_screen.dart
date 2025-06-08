@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/menu_model.dart';
@@ -5,7 +6,9 @@ import '../../models/tenant_model.dart';
 import '../../providers/menu_provider.dart';
 import '../../providers/tenant_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/cloudinary_service.dart';
 import '../../utils/constants.dart';
+import '../../utils/image_picker_util.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 
@@ -86,6 +89,21 @@ class InventoryScreen extends StatelessWidget {
     );
   }
   
+  // Helper method to check if an image URL exists and is valid
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    
+    // Basic URL validation
+    final validUrl = Uri.tryParse(url);
+    if (validUrl == null || !validUrl.isAbsolute) {
+      return false;
+    }
+    
+    return true;
+  }
+  
   Widget _buildMenuCard(BuildContext context, MenuModel menu) {
     final menuProvider = Provider.of<MenuProvider>(context, listen: false);
     
@@ -99,7 +117,7 @@ class InventoryScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            // Menu Image (placeholder)
+            // Menu Image
             Container(
               height: 70,
               width: 70,
@@ -107,13 +125,38 @@ class InventoryScreen extends StatelessWidget {
                 color: AppColors.primaryAccent.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Center(
-                child: Icon(
-                  menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                  size: 35,
-                  color: AppColors.primaryAccent,
-                ),
-              ),
+              child: _isValidImageUrl(menu.imageUrl)
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      menu.imageUrl!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                          size: 35,
+                          color: AppColors.primaryAccent,
+                        );
+                      },
+                    ),
+                  )
+                : Center(
+                    child: Icon(
+                      menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                      size: 35,
+                      color: AppColors.primaryAccent,
+                    ),
+                  ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -205,6 +248,7 @@ class InventoryScreen extends StatelessWidget {
     final priceController = TextEditingController();
     final stockController = TextEditingController();
     String selectedCategory = FoodCategories.food;
+    File? selectedImage;
     
     showDialog(
       context: context,
@@ -215,6 +259,53 @@ class InventoryScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Image Picker
+                InkWell(
+                  onTap: () async {
+                    final image = await ImagePickerUtil.pickImage(context);
+                    if (image != null) {
+                      setState(() {
+                        selectedImage = image;
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 120,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondarySurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              selectedImage!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(
+                                Icons.add_photo_alternate,
+                                size: 40,
+                                color: AppColors.primaryAccent,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Tambahkan Foto Menu',
+                                style: TextStyle(
+                                  color: AppColors.primaryAccent,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 AppTextField(
                   label: 'Nama Menu',
                   hintText: 'Masukkan nama menu',
@@ -292,7 +383,7 @@ class InventoryScreen extends StatelessWidget {
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final menuProvider = Provider.of<MenuProvider>(context, listen: false);
                 
                 final name = nameController.text.trim();
@@ -316,6 +407,31 @@ class InventoryScreen extends StatelessWidget {
                   return;
                 }
                 
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(child: CircularProgressIndicator()),
+                );
+                
+                // Upload image if selected
+                String? imageUrl;
+                if (selectedImage != null) {
+                  final cloudinaryService = CloudinaryService();
+                  imageUrl = await cloudinaryService.uploadImage(selectedImage!);
+                  
+                  if (imageUrl == null) {
+                    // Close loading dialog
+                    if (context.mounted) {
+                      Navigator.pop(context); // Close loading dialog
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Gagal mengunggah gambar. Coba lagi nanti.')),
+                      );
+                    }
+                    return;
+                  }
+                }
+                
                 // Create new menu
                 final newMenu = MenuModel(
                   id: 'menu_${DateTime.now().millisecondsSinceEpoch}',
@@ -324,10 +440,16 @@ class InventoryScreen extends StatelessWidget {
                   stock: stock,
                   tenantId: tenant.id,
                   category: selectedCategory,
+                  imageUrl: imageUrl,
                 );
                 
-                menuProvider.addMenu(newMenu);
-                Navigator.pop(context);
+                await menuProvider.addMenu(newMenu);
+                
+                // Close loading dialog and menu dialog
+                if (context.mounted) {
+                  Navigator.pop(context); // Close loading dialog
+                  Navigator.pop(context); // Close menu dialog
+                }
               },
               child: const Text('Simpan'),
             ),
@@ -342,6 +464,8 @@ class InventoryScreen extends StatelessWidget {
     final priceController = TextEditingController(text: menu.price.toString());
     final stockController = TextEditingController(text: menu.stock.toString());
     String selectedCategory = menu.category;
+    File? selectedImage;
+    bool imageChanged = false;
     
     showDialog(
       context: context,
@@ -352,6 +476,81 @@ class InventoryScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Image Picker
+                InkWell(
+                  onTap: () async {
+                    final image = await ImagePickerUtil.pickImage(context);
+                    if (image != null) {
+                      setState(() {
+                        selectedImage = image;
+                        imageChanged = true;
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 120,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondarySurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: imageChanged && selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              selectedImage!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : _isValidImageUrl(menu.imageUrl)
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  menu.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Center(
+                                      child: CircularProgressIndicator(
+                                        value: loadingProgress.expectedTotalBytes != null
+                                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                            : null,
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        size: 40,
+                                        color: AppColors.primaryAccent,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(
+                                    Icons.add_photo_alternate,
+                                    size: 40,
+                                    color: AppColors.primaryAccent,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Tambahkan Foto Menu',
+                                    style: TextStyle(
+                                      color: AppColors.primaryAccent,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 AppTextField(
                   label: 'Nama Menu',
                   hintText: 'Masukkan nama menu',
@@ -429,7 +628,7 @@ class InventoryScreen extends StatelessWidget {
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final menuProvider = Provider.of<MenuProvider>(context, listen: false);
                 
                 final name = nameController.text.trim();
@@ -453,16 +652,49 @@ class InventoryScreen extends StatelessWidget {
                   return;
                 }
                 
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(child: CircularProgressIndicator()),
+                );
+                
+                // Initialize imageUrl with current value
+                String? imageUrl = menu.imageUrl;
+                
+                // Upload image if changed
+                if (imageChanged && selectedImage != null) {
+                  final cloudinaryService = CloudinaryService();
+                  imageUrl = await cloudinaryService.uploadImage(selectedImage!);
+                  
+                  if (imageUrl == null) {
+                    // Close loading dialog
+                    if (context.mounted) {
+                      Navigator.pop(context); // Close loading dialog
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Gagal mengunggah gambar. Coba lagi nanti.')),
+                      );
+                    }
+                    return;
+                  }
+                }
+                
                 // Update menu
                 final updatedMenu = menu.copyWith(
                   name: name,
                   price: price,
                   stock: stock,
                   category: selectedCategory,
+                  imageUrl: imageUrl,
                 );
                 
-                menuProvider.updateMenu(updatedMenu);
-                Navigator.pop(context);
+                await menuProvider.updateMenu(updatedMenu);
+                
+                // Close loading dialog and menu dialog
+                if (context.mounted) {
+                  Navigator.pop(context); // Close loading dialog
+                  Navigator.pop(context); // Close menu dialog
+                }
               },
               child: const Text('Simpan'),
             ),

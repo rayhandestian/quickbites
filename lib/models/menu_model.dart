@@ -5,6 +5,7 @@ class MenuModel {
   final int stock;
   final String tenantId;
   final String category; // 'Makanan' or 'Minuman'
+  final String? imageUrl; // URL to the Cloudinary image
 
   MenuModel({
     required this.id,
@@ -13,6 +14,7 @@ class MenuModel {
     required this.stock,
     required this.tenantId,
     required this.category,
+    this.imageUrl,
   });
 
   factory MenuModel.fromMap(Map<String, dynamic> map) {
@@ -23,6 +25,7 @@ class MenuModel {
       stock: map['stock'] ?? 0,
       tenantId: map['tenantId'] ?? '',
       category: map['category'] ?? 'Makanan',
+      imageUrl: map['imageUrl'],
     );
   }
 
@@ -34,6 +37,7 @@ class MenuModel {
       'stock': stock,
       'tenantId': tenantId,
       'category': category,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -44,6 +48,7 @@ class MenuModel {
     int? stock,
     String? tenantId,
     String? category,
+    String? imageUrl,
   }) {
     return MenuModel(
       id: id ?? this.id,
@@ -52,6 +57,7 @@ class MenuModel {
       stock: stock ?? this.stock,
       tenantId: tenantId ?? this.tenantId,
       category: category ?? this.category,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 } 
