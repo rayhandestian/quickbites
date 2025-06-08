@@ -174,7 +174,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.75,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -207,68 +207,78 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Tenant Image
-              Container(
-                height: 120,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryAccent.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+              Expanded(
+                flex: 3,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _isValidImageUrl(tenant.imageUrl)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          tenant.imageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.store,
+                              size: 40,
+                              color: AppColors.primaryAccent,
+                            );
+                          },
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(
+                          Icons.store,
+                          size: 40,
+                          color: AppColors.primaryAccent,
+                        ),
+                      ),
                 ),
-                child: _isValidImageUrl(tenant.imageUrl)
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        tenant.imageUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.store,
-                            size: 40,
-                            color: AppColors.primaryAccent,
-                          );
-                        },
-                      ),
-                    )
-                  : const Center(
-                      child: Icon(
-                        Icons.store,
-                        size: 40,
-                        color: AppColors.primaryAccent,
-                      ),
-                    ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               // Tenant Name
-              Text(
-                tenant.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tenant.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    // Tenant Description
+                    Text(
+                      tenant.description ?? '',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textPrimary.withOpacity(0.7),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              // Tenant Description
-              Text(
-                tenant.description ?? '',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textPrimary.withOpacity(0.7),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
