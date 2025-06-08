@@ -39,7 +39,7 @@ class WelcomeScreen extends StatelessWidget {
                 
                 // App Name
                 const Text(
-                  'quickbites ',
+                  'QuickBites',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -114,7 +114,7 @@ class WelcomeScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.store, color: AppColors.primaryAccent),
                 title: const Text('Seller'),
-                subtitle: const Text('Jual makanan di quickbites '),
+                subtitle: const Text('Jual makanan di QuickBites'),
                 onTap: () {
                   Navigator.pop(context); // Close dialog
                   Navigator.push(

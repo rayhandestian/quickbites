@@ -62,7 +62,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _currentIndex == 0 ? 'quickbites ' : 
+          _currentIndex == 0 ? 'QuickBites' : 
           _currentIndex == 1 ? 'Pesanan Saya' : 'Profil',
         ),
         actions: [

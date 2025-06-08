@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TenantProvider()),
       ],
       child: MaterialApp(
-        title: 'quickbites ',
+        title: 'QuickBites',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.getTheme(),
         home: const InitScreen(),

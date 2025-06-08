@@ -1,12 +1,12 @@
-# Firebase Setup for quickbites 
+# Firebase Setup for QuickBites 
 
-This document provides instructions for setting up Firebase for the quickbites  application.
+This document provides instructions for setting up Firebase for the QuickBites application.
 
 ## 1. Create a Firebase Project
 
 1. Go to the [Firebase Console](https://console.firebase.google.com/)
 2. Click "Add project" and follow the setup wizard
-3. Name your project (e.g., "quickbites ")
+3. Name your project (e.g., "QuickBites")
 4. Configure Google Analytics if desired
 5. Click "Create project"
 
@@ -16,7 +16,7 @@ This document provides instructions for setting up Firebase for the quickbites  
 
 1. In the Firebase console, click on the Android icon to add an Android app
 2. Enter your app's package name (found in `android/app/build.gradle` under `applicationId`)
-3. Enter a nickname for your app (e.g., "quickbites  Android")
+3. Enter a nickname for your app (e.g., "QuickBites Android")
 4. Enter your app's SHA-1 signing certificate (optional for development)
 5. Click "Register app"
 6. Download the `google-services.json` file
@@ -26,7 +26,7 @@ This document provides instructions for setting up Firebase for the quickbites  
 
 1. In the Firebase console, click on the iOS icon to add an iOS app
 2. Enter your app's bundle ID (found in your Xcode project settings)
-3. Enter a nickname for your app (e.g., "quickbites  iOS")
+3. Enter a nickname for your app (e.g., "QuickBites iOS")
 4. Enter your App Store ID (optional)
 5. Click "Register app"
 6. Download the `GoogleService-Info.plist` file
@@ -141,7 +141,7 @@ service cloud.firestore {
 
 ## 7. Initialize Firebase in the App
 
-The quickbites  app is already configured to initialize Firebase in the `main.dart` file. Make sure you have the following packages in your `pubspec.yaml`:
+The QuickBites app is already configured to initialize Firebase in the `main.dart` file. Make sure you have the following packages in your `pubspec.yaml`:
 
 ```yaml
 dependencies:

@@ -1,6 +1,6 @@
-# quickbites 
+# QuickBites 
 
-quickbites  is a mobile food ordering application built with Flutter and Firebase. It allows customers to browse food menus from various vendors, place orders, and track their delivery status. Vendors can manage their menus, receive orders, and update order statuses.
+QuickBites is a mobile food ordering application built with Flutter and Firebase. It allows customers to browse food menus from various vendors, place orders, and track their delivery status. Vendors can manage their menus, receive orders, and update order statuses.
 
 ## Features
 
