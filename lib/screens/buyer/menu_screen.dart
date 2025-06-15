@@ -212,6 +212,10 @@ class _MenuScreenState extends State<MenuScreen> {
   }
   
   Widget _buildMenuDetail(BuildContext context, MenuModel menu) {
+    final tenantProvider = Provider.of<TenantProvider>(context);
+    final tenant = tenantProvider.getTenantById(menu.tenantId);
+    final tenantName = tenant?.name ?? 'Unknown Tenant';
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(menu.name),
@@ -258,6 +262,39 @@ class _MenuScreenState extends State<MenuScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+              
+              // Tenant Name (Clickable)
+              InkWell(
+                onTap: () {
+                  if (tenant != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MenuScreen(tenantId: tenant.id),
+                      ),
+                    );
+                  }
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      tenantName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: AppColors.primaryAccent,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 12,
+                      color: AppColors.primaryAccent,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               
               Text(
                 formatCurrency(menu.price),

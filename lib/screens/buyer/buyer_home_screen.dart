@@ -86,7 +86,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
     final tenantProvider = Provider.of<TenantProvider>(context);
     
     final List<Widget> screens = [
-      _buildHomeContent(tenantProvider),
+      _buildHomeContent(menuProvider, tenantProvider),
       const OrderTrackerScreen(),
       const ProfileScreen(),
     ];
@@ -133,8 +133,8 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
     );
   }
 
-  Widget _buildHomeContent(TenantProvider tenantProvider) {
-    final allTenants = tenantProvider.tenants;
+  Widget _buildHomeContent(MenuProvider menuProvider, TenantProvider tenantProvider) {
+    final allMenus = menuProvider.menus;
 
     return SingleChildScrollView(
       child: Padding(
@@ -146,7 +146,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Cari tenant...',
+                hintText: 'Cari makanan atau minuman...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: AppColors.secondarySurface,
@@ -159,9 +159,9 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Featured Tenants
+            // Food Grid
             const Text(
-              'Tenant Populer',
+              'Semua Menu',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -170,8 +170,8 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             ),
             const SizedBox(height: 12),
             
-            // Tenant List
-            _buildTenantGrid(allTenants),
+            // Menu Grid
+            _buildMenuGrid(allMenus, tenantProvider),
             const SizedBox(height: 24),
           ],
         ),
@@ -179,10 +179,10 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
     );
   }
 
-  Widget _buildTenantGrid(List<TenantModel> tenants) {
-    if (tenants.isEmpty) {
+  Widget _buildMenuGrid(List<MenuModel> menus, TenantProvider tenantProvider) {
+    if (menus.isEmpty) {
       return const Center(
-        child: Text('Tidak ada tenant tersedia'),
+        child: Text('Tidak ada menu tersedia'),
       );
     }
 
@@ -195,21 +195,24 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: tenants.length,
+      itemCount: menus.length,
       itemBuilder: (context, index) {
-        final tenant = tenants[index];
-        return _buildTenantCard(tenant);
+        final menu = menus[index];
+        return _buildMenuCard(menu, tenantProvider);
       },
     );
   }
 
-  Widget _buildTenantCard(TenantModel tenant) {
+  Widget _buildMenuCard(MenuModel menu, TenantProvider tenantProvider) {
+    final tenant = tenantProvider.getTenantById(menu.tenantId);
+    final tenantName = tenant?.name ?? 'Unknown Tenant';
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MenuScreen(tenantId: tenant.id),
+            builder: (context) => MenuScreen(menuId: menu.id),
           ),
         );
       },
@@ -223,7 +226,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Tenant Image
+              // Menu Image
               Expanded(
                 flex: 3,
                 child: Container(
@@ -232,11 +235,11 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
                     color: AppColors.primaryAccent.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: _isValidImageUrl(tenant.imageUrl)
+                  child: _isValidImageUrl(menu.imageUrl)
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          tenant.imageUrl!,
+                          menu.imageUrl!,
                           fit: BoxFit.cover,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
@@ -249,17 +252,17 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
                             );
                           },
                           errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.store,
+                            return Icon(
+                              menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
                               size: 40,
                               color: AppColors.primaryAccent,
                             );
                           },
                         ),
                       )
-                    : const Center(
+                    : Center(
                         child: Icon(
-                          Icons.store,
+                          menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
                           size: 40,
                           color: AppColors.primaryAccent,
                         ),
@@ -267,14 +270,14 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Tenant Name
+              // Menu Name and Price
               Expanded(
                 flex: 2,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      tenant.name,
+                      menu.name,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -284,9 +287,21 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    // Tenant Description
+                    // Price
                     Text(
-                      tenant.description ?? '',
+                      formatCurrency(menu.price),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primaryAccent,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    // Tenant Name
+                    Text(
+                      tenantName,
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textPrimary.withOpacity(0.7),
