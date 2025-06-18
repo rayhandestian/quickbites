@@ -5,7 +5,7 @@ import '../../models/order_model.dart';
 import '../../providers/menu_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/tenant_provider.dart';
-import '../../services/auth_service.dart';
+
 import '../../utils/constants.dart';
 import '../../widgets/app_button.dart';
 
@@ -36,7 +36,23 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     
     return Scaffold(
       backgroundColor: Colors.white,
-      body: userOrders.isEmpty
+      body: Column(
+        children: [
+          // Debug info - remove this in production
+          if (userOrders.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              color: Colors.grey[100],
+              child: Text(
+                'Debug: ${userOrders.length} orders loaded. Rejected orders: ${userOrders.where((o) => o.status == OrderStatus.rejected).length}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          
+          Expanded(
+            child: userOrders.isEmpty
         ? Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -168,16 +184,121 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
                         ),
                         
                         const SizedBox(height: 16),
+                        
+                        // Estimated completion time or rejection reason
+                        if (order.status == OrderStatus.created && order.estimatedCompletionTime != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 16,
+                                  color: Colors.blue,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Estimasi selesai: ${_formatTime(order.estimatedCompletionTime!)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        if (order.status == OrderStatus.rejected)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.cancel,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Pesanan ditolak penjual',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (order.rejectionReason != null && order.rejectionReason!.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Alasan: ${order.rejectionReason}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.red.withOpacity(0.8),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        
+                        const SizedBox(height: 8),
                         const Divider(),
                         const SizedBox(height: 8),
                         
-                        // Order Date
-                        Text(
-                          'Dipesan pada: ${_formatDate(order.timestamp)}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                        // Order Date and Delete button (if rejected)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Dipesan pada: ${_formatDate(order.timestamp)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                            if (order.status == OrderStatus.rejected)
+                              TextButton.icon(
+                                onPressed: () {
+                                  _showDeleteOrderConfirmation(context, order.id);
+                                },
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 16,
+                                  color: Colors.red,
+                                ),
+                                label: const Text(
+                                  'Hapus',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ),
@@ -186,6 +307,9 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
               );
             },
           ),
+            ),
+          ],
+        ),
     );
   }
   
@@ -198,6 +322,49 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     final minute = date.minute.toString().padLeft(2, '0');
     
     return '$day/$month/$year $hour:$minute';
+  }
+
+  // Helper method to format time
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  // Show delete order confirmation dialog
+  void _showDeleteOrderConfirmation(BuildContext context, String orderId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Pesanan'),
+          content: const Text('Apakah Anda yakin ingin menghapus pesanan ini?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await Provider.of<OrderProvider>(context, listen: false)
+                    .deleteOrder(orderId);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Pesanan berhasil dihapus')),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
+    );
   }
   
   // Helper method to check if an image URL exists and is valid
@@ -220,21 +387,25 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     String label;
     
     switch (status) {
-      case 'dikirim':
+      case OrderStatus.sent:
         color = Colors.orange;
         label = 'Dipesan';
         break;
-      case 'dibuat':
+      case OrderStatus.created:
         color = Colors.blue;
         label = 'Pesanan Dibuat';
         break;
-      case 'siap':
+      case OrderStatus.ready:
         color = Colors.green;
         label = 'Siap Diambil';
         break;
-      case 'selesai':
+      case OrderStatus.completed:
         color = Colors.grey;
         label = 'Histori';
+        break;
+      case OrderStatus.rejected:
+        color = Colors.red;
+        label = 'Ditolak';
         break;
       default:
         color = Colors.orange;
@@ -285,6 +456,13 @@ class _OrderDetailSheet extends StatefulWidget {
 }
 
 class _OrderDetailSheetState extends State<_OrderDetailSheet> {
+  // Helper method to format time
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
   @override
   Widget build(BuildContext context) {
     final orderProvider = Provider.of<OrderProvider>(context);
@@ -472,22 +650,120 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
           ),
           const SizedBox(height: 24),
           
+          // Estimation time display (if order is accepted)
+          if (widget.order.status == OrderStatus.created && widget.order.estimatedCompletionTime != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.access_time,
+                    size: 20,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Estimasi selesai: ${_formatTime(widget.order.estimatedCompletionTime!)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Rejection info (if order is rejected)
+          if (widget.order.status == OrderStatus.rejected)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.withOpacity(0.3), width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.cancel,
+                        size: 24,
+                        color: Colors.red,
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Pesanan ditolak penjual',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (widget.order.rejectionReason != null && widget.order.rejectionReason!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.withOpacity(0.2)),
+                      ),
+                      child: Text(
+                        'Alasan: ${widget.order.rejectionReason}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.red,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Alasan penolakan tidak diberikan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.red.withOpacity(0.7),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+          if (widget.order.status == OrderStatus.rejected)
+            const SizedBox(height: 16),
+
           // Action Button
-          if (widget.order.status == 'siap')
+          if (widget.order.status == OrderStatus.ready)
             AppButton(
               text: 'Pesanan sudah diambil',
               onPressed: () async {
                 // Update order status to 'selesai'
                 await orderProvider.updateOrderStatus(
                   widget.order.id,
-                  'selesai',
+                  OrderStatus.completed,
                 );
                 if (mounted) {
                   Navigator.pop(context);
                 }
               },
             )
-          else if (widget.order.status == 'selesai')
+          else if (widget.order.status == OrderStatus.completed)
             const Center(
               child: Text(
                 'Pesanan telah selesai',
@@ -498,14 +774,36 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                 ),
               ),
             )
-          else
+          else if (widget.order.status == OrderStatus.rejected)
+            AppButton(
+              text: 'Hapus Pesanan',
+              onPressed: () async {
+                Navigator.pop(context); // Close the bottom sheet first
+                await orderProvider.deleteOrder(widget.order.id);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Pesanan berhasil dihapus')),
+                );
+              },
+            )
+          else if (widget.order.status == OrderStatus.created)
             const Center(
               child: Text(
-                'Menunggu pesanan siap diambil...',
+                'Pesanan sedang diproses...',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: AppColors.primaryAccent,
+                ),
+              ),
+            )
+          else
+            const Center(
+              child: Text(
+                'Menunggu penjual menerima pesanan...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.orange,
                 ),
               ),
             ),
@@ -515,9 +813,40 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
   }
 
   Widget _buildStatusTracker(String status) {
-    final bool orderSent = status == 'dikirim';
-    final bool orderCreated = status == 'dibuat' || status == 'siap' || status == 'selesai';
-    final bool orderReady = status == 'siap' || status == 'selesai';
+    // Handle rejected orders differently
+    if (status == OrderStatus.rejected) {
+      return Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: const Icon(
+              Icons.cancel,
+              color: Colors.white,
+              size: 40,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Pesanan Ditolak',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final bool orderSent = status == OrderStatus.sent;
+    final bool orderCreated = status == OrderStatus.created || status == OrderStatus.ready || status == OrderStatus.completed;
+    final bool orderReady = status == OrderStatus.ready || status == OrderStatus.completed;
     
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

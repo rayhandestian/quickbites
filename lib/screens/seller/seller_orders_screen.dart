@@ -23,7 +23,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     
     // Load orders when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -74,6 +74,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
     final inProgressOrders = allOrders.where((order) => order.status == OrderStatus.created).toList();
     final readyOrders = allOrders.where((order) => order.status == OrderStatus.ready).toList();
     final completedOrders = allOrders.where((order) => order.status == OrderStatus.completed).toList();
+    final rejectedOrders = allOrders.where((order) => order.status == OrderStatus.rejected).toList();
     
     return Scaffold(
       appBar: AppBar(
@@ -85,13 +86,14 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
           labelColor: AppColors.primaryAccent,
           unselectedLabelColor: AppColors.textPrimary.withOpacity(0.5),
           indicatorColor: AppColors.primaryAccent,
-          isScrollable: false,
+          isScrollable: true,
           labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           tabs: const [
             Tab(text: 'Dipesan'),
             Tab(text: 'Diproses'),
             Tab(text: 'Siap'),
             Tab(text: 'Histori'),
+            Tab(text: 'Ditolak'),
           ],
         ),
       ),
@@ -102,6 +104,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
           _buildOrderList(context, inProgressOrders, menuProvider, OrderStatus.created),
           _buildOrderList(context, readyOrders, menuProvider, OrderStatus.ready),
           _buildOrderList(context, completedOrders, menuProvider, OrderStatus.completed),
+          _buildOrderList(context, rejectedOrders, menuProvider, OrderStatus.rejected),
         ],
       ),
     );
@@ -167,6 +170,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
         return Icons.room_service;
       case OrderStatus.completed:
         return Icons.check_circle;
+      case OrderStatus.rejected:
+        return Icons.cancel;
       default:
         return Icons.receipt;
     }
@@ -338,6 +343,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
         return 'Siap Diambil';
       case OrderStatus.completed:
         return 'Histori';
+      case OrderStatus.rejected:
+        return 'Ditolak';
       default:
         return 'Unknown';
     }
@@ -353,6 +360,8 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
         return Colors.green;
       case OrderStatus.completed:
         return Colors.grey;
+      case OrderStatus.rejected:
+        return Colors.red;
       default:
         return Colors.grey;
     }
@@ -390,29 +399,74 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
     final menuProvider = Provider.of<MenuProvider>(context, listen: false);
 
     if (currentStatus == OrderStatus.sent) {
-      return AppButton(
-        text: 'Terima Pesanan',
-        onPressed: () async {
-          // Update stock first
-          await menuProvider.updateStock(menu.id, menu.stock - order.quantity);
-          
-          // Then update order status
-          await orderProvider.updateOrderStatus(order.id, OrderStatus.created);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pesanan diterima')),
-          );
-        },
+      return Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  _showRejectOrderDialog(context, order.id);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Tolak',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: AppButton(
+              text: 'Terima',
+              onPressed: () {
+                _showAcceptOrderDialog(context, order.id, menu, menuProvider);
+              },
+            ),
+          ),
+        ],
       );
     } else if (currentStatus == OrderStatus.created) {
-      return AppButton(
-        text: 'Siap Diambil',
-        onPressed: () async {
-          await orderProvider.updateOrderStatus(order.id, OrderStatus.ready);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pesanan siap diambil')),
-          );
-        },
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (order.estimatedCompletionTime != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Estimasi selesai: ${_formatTime(order.estimatedCompletionTime!)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          AppButton(
+            text: 'Siap Diambil',
+            onPressed: () async {
+              await orderProvider.updateOrderStatus(order.id, OrderStatus.ready);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Pesanan siap diambil')),
+              );
+            },
+          ),
+        ],
       );
     } else if (currentStatus == OrderStatus.ready) {
       return const Text(
@@ -423,6 +477,35 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
           color: Colors.blue,
         ),
         textAlign: TextAlign.center,
+      );
+    } else if (currentStatus == OrderStatus.rejected) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Pesanan ditolak',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            if (order.rejectionReason != null)
+              Text(
+                'Alasan: ${order.rejectionReason}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red.withOpacity(0.8),
+                ),
+              ),
+          ],
+        ),
       );
     } else {
       return const Text(
@@ -435,5 +518,192 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
         textAlign: TextAlign.center,
       );
     }
+  }
+
+  // Format time to show hours and minutes
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  // Show reject order dialog
+  void _showRejectOrderDialog(BuildContext context, String orderId) {
+    final List<String> rejectionReasons = [
+      'Stock rupanya habis',
+      'Akan tutup',
+      'Terlalu sibuk saat ini',
+      'Bahan habis',
+      'Lainnya (Tulis sendiri)',
+    ];
+    
+    String? selectedReason;
+    final TextEditingController customReasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Tolak Pesanan'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Pilih alasan penolakan:'),
+                  const SizedBox(height: 16),
+                  ...rejectionReasons.map((reason) => RadioListTile<String>(
+                    title: Text(reason),
+                    value: reason,
+                    groupValue: selectedReason,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedReason = value;
+                      });
+                    },
+                  )),
+                  if (selectedReason == 'Lainnya (Tulis sendiri)')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextField(
+                        controller: customReasonController,
+                        decoration: const InputDecoration(
+                          hintText: 'Tulis alasan Anda...',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedReason == null ? null : () async {
+                    String finalReason = selectedReason == 'Lainnya (Tulis sendiri)'
+                        ? customReasonController.text.trim()
+                        : selectedReason!;
+                    
+                    if (finalReason.isNotEmpty) {
+                      Navigator.of(context).pop();
+                      await Provider.of<OrderProvider>(context, listen: false)
+                          .rejectOrder(orderId, finalReason);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Pesanan berhasil ditolak')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Tolak Pesanan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Show accept order dialog
+  void _showAcceptOrderDialog(BuildContext context, String orderId, MenuModel menu, MenuProvider menuProvider) {
+    int estimatedMinutes = 5; // Default 5 minutes
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Terima Pesanan'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Estimasi waktu selesai (menit):'),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: estimatedMinutes > 1 ? () {
+                          setState(() {
+                            estimatedMinutes--;
+                          });
+                        } : null,
+                        icon: const Icon(Icons.remove),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$estimatedMinutes menit',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            estimatedMinutes++;
+                          });
+                        },
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Perkiraan selesai: ${_formatTime(DateTime.now().add(Duration(minutes: estimatedMinutes)))}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    
+                    // Update stock first
+                    await menuProvider.updateStock(menu.id, menu.stock - 1);
+                    
+                    // Then accept order with estimation
+                    await Provider.of<OrderProvider>(context, listen: false)
+                        .acceptOrder(orderId, estimatedMinutes: estimatedMinutes);
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Pesanan diterima (estimasi $estimatedMinutes menit)')),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Terima Pesanan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 } 

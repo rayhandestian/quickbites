@@ -4,9 +4,12 @@ class OrderModel {
   final String menuId;
   final String? customNote;
   final int quantity;
-  final String status; // 'dibuat', 'siap', 'selesai'
+  final String status; // 'dikirim', 'dibuat', 'siap', 'selesai', 'ditolak'
   final DateTime timestamp;
   final int? orderNumber; // New field for incremental order number per tenant
+  final String? rejectionReason; // New field for rejection reason
+  final int? estimatedMinutes; // New field for estimated completion time in minutes
+  final DateTime? estimatedCompletionTime; // Calculated field for estimated completion
 
   OrderModel({
     required this.id,
@@ -17,6 +20,9 @@ class OrderModel {
     required this.status,
     required this.timestamp,
     this.orderNumber,
+    this.rejectionReason,
+    this.estimatedMinutes,
+    this.estimatedCompletionTime,
   });
 
   factory OrderModel.fromMap(Map<String, dynamic> map) {
@@ -26,11 +32,16 @@ class OrderModel {
       menuId: map['menuId'] ?? '',
       customNote: map['customNote'],
       quantity: map['quantity'] ?? 0,
-      status: map['status'] ?? 'dibuat',
+      status: map['status'] ?? 'dikirim',
       timestamp: map['timestamp'] != null 
         ? DateTime.parse(map['timestamp']) 
         : DateTime.now(),
       orderNumber: map['orderNumber'],
+      rejectionReason: map['rejectionReason'],
+      estimatedMinutes: map['estimatedMinutes'],
+      estimatedCompletionTime: map['estimatedCompletionTime'] != null
+        ? DateTime.parse(map['estimatedCompletionTime'])
+        : null,
     );
   }
 
@@ -44,6 +55,9 @@ class OrderModel {
       'status': status,
       'timestamp': timestamp.toIso8601String(),
       'orderNumber': orderNumber,
+      'rejectionReason': rejectionReason,
+      'estimatedMinutes': estimatedMinutes,
+      'estimatedCompletionTime': estimatedCompletionTime?.toIso8601String(),
     };
   }
 
@@ -56,6 +70,9 @@ class OrderModel {
     String? status,
     DateTime? timestamp,
     int? orderNumber,
+    String? rejectionReason,
+    int? estimatedMinutes,
+    DateTime? estimatedCompletionTime,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -66,6 +83,9 @@ class OrderModel {
       status: status ?? this.status,
       timestamp: timestamp ?? this.timestamp,
       orderNumber: orderNumber ?? this.orderNumber,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
+      estimatedCompletionTime: estimatedCompletionTime ?? this.estimatedCompletionTime,
     );
   }
 } 

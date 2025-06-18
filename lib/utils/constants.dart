@@ -21,6 +21,7 @@ class OrderStatus {
   static const String created = 'dibuat';  // When seller accepts the order
   static const String ready = 'siap';      // When order is ready for pickup
   static const String completed = 'selesai'; // When order is completed
+  static const String rejected = 'ditolak'; // When seller rejects the order
 }
 
 // User roles

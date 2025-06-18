@@ -30,6 +30,7 @@ class PaymentScreen extends StatefulWidget {
 class _PaymentScreenState extends State<PaymentScreen> {
   String? _selectedPaymentMethod;
   bool _isProcessing = false;
+  bool _showPaymentInterface = false;
 
   @override
   Widget build(BuildContext context) {
@@ -45,58 +46,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pilih metode pembayaran yang anda inginkan!',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                
-                // QR Code section
-                const Text(
-                  'QR CODE',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildPaymentOption('QRIS'),
-                
-                const SizedBox(height: 24),
-                // E-Wallet section
-                const Text(
-                  'E-Wallet',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildPaymentOption('OVO'),
-                const SizedBox(height: 8),
-                _buildPaymentOption('JAGO'),
-                const SizedBox(height: 8),
-                _buildPaymentOption('DANA'),
-                const SizedBox(height: 8),
-                _buildPaymentOption('Shopee Pay'),
-                
-                const Spacer(),
-                AppButton(
-                  text: 'Bayar',
-                  onPressed: _selectedPaymentMethod == null ? () {} : () async {
-                    await _processPayment();
-                  },
-                ),
-              ],
-            ),
+            child: _showPaymentInterface ? _buildPaymentInterface() : _buildPaymentMethodSelection(),
           ),
           if (_isProcessing)
             Container(
@@ -107,6 +57,257 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPaymentMethodSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pilih metode pembayaran yang anda inginkan!',
+          style: TextStyle(
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        
+        // QR Code section
+        const Text(
+          'QR CODE',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildPaymentOption('QRIS'),
+        
+        const SizedBox(height: 24),
+        // E-Wallet section
+        const Text(
+          'E-Wallet',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildPaymentOption('OVO'),
+        const SizedBox(height: 8),
+        _buildPaymentOption('JAGO'),
+        const SizedBox(height: 8),
+        _buildPaymentOption('DANA'),
+        const SizedBox(height: 8),
+        _buildPaymentOption('Shopee Pay'),
+        
+        const Spacer(),
+        AppButton(
+          text: 'Bayar',
+          onPressed: _selectedPaymentMethod == null ? () {} : () {
+            setState(() {
+              _showPaymentInterface = true;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentInterface() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Back button
+        Row(
+          children: [
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  _showPaymentInterface = false;
+                });
+              },
+              icon: const Icon(Icons.arrow_back),
+            ),
+            const Text(
+              'Kembali ke metode pembayaran',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        
+        // Payment method info
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.secondarySurface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'Pembayaran via $_selectedPaymentMethod',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Total: ${formatCurrency(widget.totalPrice)}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryAccent,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 32),
+        
+        // Mock payment interface (QR code placeholder)
+        Container(
+          width: 250,
+          height: 250,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                spreadRadius: 2,
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.qr_code,
+                      size: 80,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'QR Code Mock',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _selectedPaymentMethod ?? 'Payment',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Instructions
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.blue,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Cara Pembayaran:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '1. Buka aplikasi ${_selectedPaymentMethod ?? 'payment'}\n'
+                '2. Scan QR Code di atas\n'
+                '3. Konfirmasi pembayaran\n'
+                '4. Tekan "Sudah Bayar" setelah selesai',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        const Spacer(),
+        
+        // Payment completion button
+        AppButton(
+          text: 'Sudah Bayar',
+          onPressed: () async {
+            await _processPayment();
+          },
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Cancel button
+        TextButton(
+          onPressed: () {
+            setState(() {
+              _showPaymentInterface = false;
+            });
+          },
+          child: const Text(
+            'Batal',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

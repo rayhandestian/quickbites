@@ -208,6 +208,106 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Reject order with reason
+  Future<void> rejectOrder(String orderId, String rejectionReason) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': OrderStatus.rejected,
+        'rejectionReason': rejectionReason,
+      });
+      
+      // Update in local list
+      final index = _orders.indexWhere((order) => order.id == orderId);
+      if (index != -1) {
+        final updatedOrder = _orders[index].copyWith(
+          status: OrderStatus.rejected,
+          rejectionReason: rejectionReason,
+        );
+        _orders[index] = updatedOrder;
+      }
+    } catch (e) {
+      print('Error rejecting order: $e');
+      // For demo purposes, still update the local list even if Firestore fails
+      final index = _orders.indexWhere((order) => order.id == orderId);
+      if (index != -1) {
+        final updatedOrder = _orders[index].copyWith(
+          status: OrderStatus.rejected,
+          rejectionReason: rejectionReason,
+        );
+        _orders[index] = updatedOrder;
+      }
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // Accept order with optional estimation time
+  Future<void> acceptOrder(String orderId, {int estimatedMinutes = 5}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final estimatedCompletionTime = DateTime.now().add(Duration(minutes: estimatedMinutes));
+      
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': OrderStatus.created,
+        'estimatedMinutes': estimatedMinutes,
+        'estimatedCompletionTime': estimatedCompletionTime.toIso8601String(),
+      });
+      
+      // Update in local list
+      final index = _orders.indexWhere((order) => order.id == orderId);
+      if (index != -1) {
+        final updatedOrder = _orders[index].copyWith(
+          status: OrderStatus.created,
+          estimatedMinutes: estimatedMinutes,
+          estimatedCompletionTime: estimatedCompletionTime,
+        );
+        _orders[index] = updatedOrder;
+      }
+    } catch (e) {
+      print('Error accepting order: $e');
+      // For demo purposes, still update the local list even if Firestore fails
+      final index = _orders.indexWhere((order) => order.id == orderId);
+      if (index != -1) {
+        final estimatedCompletionTime = DateTime.now().add(Duration(minutes: estimatedMinutes));
+        final updatedOrder = _orders[index].copyWith(
+          status: OrderStatus.created,
+          estimatedMinutes: estimatedMinutes,
+          estimatedCompletionTime: estimatedCompletionTime,
+        );
+        _orders[index] = updatedOrder;
+      }
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // Delete order (for rejected orders)
+  Future<void> deleteOrder(String orderId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _firestore.collection('orders').doc(orderId).delete();
+      
+      // Remove from local list
+      _orders.removeWhere((order) => order.id == orderId);
+    } catch (e) {
+      print('Error deleting order: $e');
+      // For demo purposes, still remove from local list even if Firestore fails
+      _orders.removeWhere((order) => order.id == orderId);
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
   // Load mock orders for testing when Firestore is not available
   void _loadMockOrders() {
     _orders = [
@@ -218,9 +318,11 @@ class OrderProvider with ChangeNotifier {
         menuId: 'menu1',
         quantity: 2,
         customNote: 'Nasi nya dipisah dan sambalnya sedikit saja',
-        status: 'dibuat',
+        status: OrderStatus.created,
         timestamp: DateTime.now().subtract(const Duration(hours: 1)),
         orderNumber: 1,
+        estimatedMinutes: 10,
+        estimatedCompletionTime: DateTime.now().add(const Duration(minutes: 10)),
       ),
       OrderModel(
         id: '2',
@@ -228,9 +330,11 @@ class OrderProvider with ChangeNotifier {
         menuId: 'menu2',
         quantity: 1,
         customNote: 'Sambal dicampur saja',
-        status: 'siap',
+        status: OrderStatus.ready,
         timestamp: DateTime.now().subtract(const Duration(hours: 2)),
         orderNumber: 2,
+        estimatedMinutes: 5,
+        estimatedCompletionTime: DateTime.now().subtract(const Duration(minutes: 30)),
       ),
       OrderModel(
         id: '3',
@@ -238,30 +342,41 @@ class OrderProvider with ChangeNotifier {
         menuId: 'menu3',
         quantity: 1,
         customNote: 'Tidak pakai sambal',
-        status: 'dibuat',
-        timestamp: DateTime.now().subtract(const Duration(hours: 3)),
+        status: OrderStatus.sent,
+        timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
         orderNumber: 3,
       ),
-      // Legacy orders without orderNumber (will show 0)
       OrderModel(
-        id: 'legacy1',
+        id: '4',
         buyerId: 'buyer1',
         menuId: 'menu1',
         quantity: 1,
-        customNote: 'Pesanan lama tanpa nomor urut',
-        status: 'selesai',
-        timestamp: DateTime.now().subtract(const Duration(days: 1)),
-        orderNumber: null, // Legacy order without orderNumber
+        customNote: 'Extra pedas',
+        status: OrderStatus.rejected,
+        timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
+        orderNumber: 4,
+        rejectionReason: 'Stock rupanya habis',
       ),
-      OrderModel(
-        id: 'legacy2',
-        buyerId: 'buyer2',
-        menuId: 'menu4',
-        quantity: 2,
-        status: 'selesai',
-        timestamp: DateTime.now().subtract(const Duration(days: 2)),
-        orderNumber: null, // Legacy order without orderNumber
-      ),
+      // Legacy orders without orderNumber (will show 0)
+              OrderModel(
+          id: 'legacy1',
+          buyerId: 'buyer1',
+          menuId: 'menu1',
+          quantity: 1,
+          customNote: 'Pesanan lama tanpa nomor urut',
+          status: OrderStatus.completed,
+          timestamp: DateTime.now().subtract(const Duration(days: 1)),
+          orderNumber: null, // Legacy order without orderNumber
+        ),
+        OrderModel(
+          id: 'legacy2',
+          buyerId: 'buyer2',
+          menuId: 'menu4',
+          quantity: 2,
+          status: OrderStatus.completed,
+          timestamp: DateTime.now().subtract(const Duration(days: 2)),
+          orderNumber: null, // Legacy order without orderNumber
+        ),
     ];
     
     // Update counters based on mock data
