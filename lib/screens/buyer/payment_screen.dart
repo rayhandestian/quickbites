@@ -12,6 +12,7 @@ class PaymentScreen extends StatefulWidget {
   final int quantity;
   final String? customNote;
   final int totalPrice;
+  final String? tenantId;
 
   const PaymentScreen({
     Key? key,
@@ -19,6 +20,7 @@ class PaymentScreen extends StatefulWidget {
     required this.quantity,
     this.customNote,
     required this.totalPrice,
+    this.tenantId,
   }) : super(key: key);
 
   @override
@@ -182,7 +184,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
       
       // Save order to Firestore
-      await orderProvider.addOrder(newOrder);
+      await orderProvider.addOrder(newOrder, tenantId: widget.tenantId);
       
       // Simulate payment processing
       await Future.delayed(const Duration(seconds: 2));

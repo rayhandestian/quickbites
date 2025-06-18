@@ -6,6 +6,7 @@ class OrderModel {
   final int quantity;
   final String status; // 'dibuat', 'siap', 'selesai'
   final DateTime timestamp;
+  final int? orderNumber; // New field for incremental order number per tenant
 
   OrderModel({
     required this.id,
@@ -15,6 +16,7 @@ class OrderModel {
     required this.quantity,
     required this.status,
     required this.timestamp,
+    this.orderNumber,
   });
 
   factory OrderModel.fromMap(Map<String, dynamic> map) {
@@ -28,6 +30,7 @@ class OrderModel {
       timestamp: map['timestamp'] != null 
         ? DateTime.parse(map['timestamp']) 
         : DateTime.now(),
+      orderNumber: map['orderNumber'],
     );
   }
 
@@ -40,6 +43,7 @@ class OrderModel {
       'quantity': quantity,
       'status': status,
       'timestamp': timestamp.toIso8601String(),
+      'orderNumber': orderNumber,
     };
   }
 
@@ -51,6 +55,7 @@ class OrderModel {
     int? quantity,
     String? status,
     DateTime? timestamp,
+    int? orderNumber,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -60,6 +65,7 @@ class OrderModel {
       quantity: quantity ?? this.quantity,
       status: status ?? this.status,
       timestamp: timestamp ?? this.timestamp,
+      orderNumber: orderNumber ?? this.orderNumber,
     );
   }
 } 

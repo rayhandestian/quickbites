@@ -27,6 +27,8 @@ class BuyerHomeScreen extends StatefulWidget {
 class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   late int _currentIndex;
   final TextEditingController _searchController = TextEditingController();
+  String _selectedCategory = 'Semua'; // Default filter
+  List<MenuModel> _filteredMenus = [];
   
   // Helper method to check if an image URL exists and is valid
   bool _isValidImageUrl(String? url) {
@@ -50,6 +52,9 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
     _currentIndex = widget.initialTabIndex;
     // Load data when the screen is initialized
     _loadInitialData();
+    
+    // Add listener to search controller
+    _searchController.addListener(_filterMenus);
   }
 
   Future<void> _loadInitialData() async {
@@ -62,6 +67,24 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
       tenantProvider.loadTenants(),
       orderProvider.loadOrders(),
     ]);
+    
+    // Initialize filtered menus
+    _filterMenus();
+  }
+  
+  void _filterMenus() {
+    final menuProvider = Provider.of<MenuProvider>(context, listen: false);
+    final allMenus = menuProvider.menus;
+    
+    setState(() {
+      _filteredMenus = allMenus.where((menu) {
+        final matchesSearch = _searchController.text.isEmpty ||
+            menu.name.toLowerCase().contains(_searchController.text.toLowerCase());
+        final matchesCategory = _selectedCategory == 'Semua' ||
+            menu.category == _selectedCategory;
+        return matchesSearch && matchesCategory;
+      }).toList();
+    });
   }
 
   @override
@@ -81,9 +104,15 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
     final menuProvider = Provider.of<MenuProvider>(context);
     final tenantProvider = Provider.of<TenantProvider>(context);
+    
+    // Update filtered menus when menu provider changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_filteredMenus.isEmpty && menuProvider.menus.isNotEmpty) {
+        _filterMenus();
+      }
+    });
     
     final List<Widget> screens = [
       _buildHomeContent(menuProvider, tenantProvider),
@@ -97,15 +126,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
           _currentIndex == 0 ? 'QuickBites' : 
           _currentIndex == 1 ? 'Pesanan Saya' : 'Profil',
         ),
-        actions: [
-          if (_currentIndex == 0)
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined),
-              onPressed: () {
-                // Show notifications
-              },
-            ),
-        ],
+        automaticallyImplyLeading: false, // Remove back button
       ),
       body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -134,8 +155,6 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   }
 
   Widget _buildHomeContent(MenuProvider menuProvider, TenantProvider tenantProvider) {
-    final allMenus = menuProvider.menus;
-
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -157,11 +176,41 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
+            const SizedBox(height: 16),
+            
+            // Filter Chips
+            Row(
+              children: [
+                const Text(
+                  'Filter: ',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('Semua'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Makanan'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Minuman'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
 
             // Food Grid
             const Text(
-              'Semua Menu',
+              'Menu Tersedia',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -171,18 +220,57 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
             const SizedBox(height: 12),
             
             // Menu Grid
-            _buildMenuGrid(allMenus, tenantProvider),
+            _buildMenuGrid(_filteredMenus, tenantProvider),
             const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
+  
+  Widget _buildFilterChip(String category) {
+    final isSelected = _selectedCategory == category;
+    return FilterChip(
+      label: Text(category),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _selectedCategory = category;
+        });
+        _filterMenus();
+      },
+      backgroundColor: AppColors.secondarySurface,
+      selectedColor: AppColors.primaryAccent.withOpacity(0.2),
+      checkmarkColor: AppColors.primaryAccent,
+      labelStyle: TextStyle(
+        color: isSelected ? AppColors.primaryAccent : AppColors.textPrimary,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+    );
+  }
 
   Widget _buildMenuGrid(List<MenuModel> menus, TenantProvider tenantProvider) {
     if (menus.isEmpty) {
-      return const Center(
-        child: Text('Tidak ada menu tersedia'),
+      return Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.search_off_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _searchController.text.isEmpty 
+                ? 'Tidak ada menu tersedia'
+                : 'Menu tidak ditemukan',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       );
     }
 

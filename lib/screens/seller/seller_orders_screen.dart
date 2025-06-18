@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/menu_model.dart';
 import '../../models/order_model.dart';
-import '../../models/tenant_model.dart';
+
 import '../../providers/menu_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/tenant_provider.dart';
@@ -91,7 +91,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
             Tab(text: 'Baru'),
             Tab(text: 'Diproses'),
             Tab(text: 'Siap'),
-            Tab(text: 'Selesai'),
+            Tab(text: 'Histori'),
           ],
         ),
       ),
@@ -207,7 +207,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Nomor Urutan: ${order.id.substring(0, 2)}',
+                  'Nomor Urutan: ${order.orderNumber ?? 0}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -236,13 +236,38 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
                     color: AppColors.primaryAccent.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Center(
-                    child: Icon(
-                      menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                      size: 30,
-                      color: AppColors.primaryAccent,
-                    ),
-                  ),
+                  child: _isValidImageUrl(menu.imageUrl)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          menu.imageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                              size: 30,
+                              color: AppColors.primaryAccent,
+                            );
+                          },
+                        ),
+                      )
+                    : Center(
+                        child: Icon(
+                          menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                          size: 30,
+                          color: AppColors.primaryAccent,
+                        ),
+                      ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -312,7 +337,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
       case OrderStatus.ready:
         return 'Siap Diambil';
       case OrderStatus.completed:
-        return 'Selesai';
+        return 'Histori';
       default:
         return 'Unknown';
     }
@@ -342,6 +367,21 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
     final minute = date.minute.toString().padLeft(2, '0');
     
     return '$day/$month/$year $hour:$minute';
+  }
+
+  // Helper method to check if an image URL exists and is valid
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    
+    // Basic URL validation
+    final validUrl = Uri.tryParse(url);
+    if (validUrl == null || !validUrl.isAbsolute) {
+      return false;
+    }
+    
+    return true;
   }
 
   // Add this method to handle order actions based on status

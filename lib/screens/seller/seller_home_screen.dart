@@ -10,6 +10,7 @@ import '../../utils/constants.dart';
 import 'inventory_screen.dart';
 import 'seller_orders_screen.dart';
 import 'seller_profile_screen.dart';
+import 'sales_report_screen.dart';
 
 class SellerHomeScreen extends StatefulWidget {
   const SellerHomeScreen({Key? key}) : super(key: key);
@@ -20,6 +21,7 @@ class SellerHomeScreen extends StatefulWidget {
 
 class _SellerHomeScreenState extends State<SellerHomeScreen> {
   int _currentIndex = 0;
+  String _selectedReportPeriod = 'Harian'; // Default to daily reports
   
   @override
   void initState() {
@@ -67,7 +69,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
     final int completedOrders = orders.where((order) => order.status == OrderStatus.completed).length;
     
     final List<Widget> screens = [
-      _buildHomeContent(tenant, pendingOrders, readyOrders, completedOrders, menuItems.length),
+      _buildHomeContent(tenant, pendingOrders, readyOrders, completedOrders, menuItems.length, orders),
       const InventoryScreen(),
       const SellerOrdersScreen(),
       const SellerProfileScreen(),
@@ -79,6 +81,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
           _currentIndex == 0 ? 'Dashboard Penjual' : 
           _currentIndex == 1 ? 'Inventori' : 'Profil',
         ),
+        automaticallyImplyLeading: false, // Remove back button
       ) : null,
       body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -116,6 +119,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
     int readyOrders, 
     int completedOrders,
     int totalMenuItems,
+    List<dynamic> allOrders,
   ) {
     final totalOrders = pendingOrders + readyOrders + completedOrders;
     final totalRevenue = completedOrders * 15000; // Mock revenue calculation
@@ -144,11 +148,46 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
                         color: AppColors.primaryAccent,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.store,
-                        color: Colors.white,
-                        size: 30,
-                      ),
+                      child: tenant?.imageUrl != null && tenant!.imageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              tenant!.imageUrl!,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryAccent.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.store,
+                                  color: Colors.white,
+                                  size: 30,
+                                );
+                              },
+                            ),
+                          )
+                        : const Icon(
+                            Icons.store,
+                            color: Colors.white,
+                            size: 30,
+                          ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -179,6 +218,54 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Sales Report Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Laporan Penjualan',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                DropdownButton<String>(
+                  value: _selectedReportPeriod,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedReportPeriod = newValue!;
+                    });
+                  },
+                  items: <String>['Harian', 'Bulanan']
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            GestureDetector(
+              onTap: () {
+                final authService = Provider.of<AuthService>(context, listen: false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SalesReportScreen(
+                      reportPeriod: _selectedReportPeriod,
+                      tenantId: tenant?.id ?? authService.currentUser?.id ?? '',
+                    ),
+                  ),
+                );
+              },
+              child: _buildSalesReport(allOrders, _selectedReportPeriod),
             ),
             const SizedBox(height: 24),
             
@@ -268,10 +355,124 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
             const SizedBox(height: 8),
             
             _buildOrderStatusCard(
-              'Selesai',
+              'Histori',
               completedOrders,
               Icons.done_all,
               Colors.green,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSalesReport(List<dynamic> orders, String period) {
+    // Filter orders for the selected period
+    final now = DateTime.now();
+    List<dynamic> filteredOrders;
+    
+    if (period == 'Harian') {
+      // Get orders from today
+      filteredOrders = orders.where((order) {
+        final orderDate = order.timestamp;
+        return orderDate.year == now.year &&
+               orderDate.month == now.month &&
+               orderDate.day == now.day;
+      }).toList();
+    } else {
+      // Get orders from this month
+      filteredOrders = orders.where((order) {
+        final orderDate = order.timestamp;
+        return orderDate.year == now.year &&
+               orderDate.month == now.month;
+      }).toList();
+    }
+    
+    final completedSales = filteredOrders.where((order) => order.status == OrderStatus.completed).length;
+    final totalSalesRevenue = completedSales * 15000; // Mock calculation
+    
+    return Card(
+      elevation: 2,
+      color: AppColors.primaryAccent.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.trending_up,
+                  color: AppColors.primaryAccent,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Laporan $period',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.primaryAccent.withOpacity(0.7),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Penjualan Selesai',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textPrimary.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$completedSales pesanan',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Total Pendapatan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textPrimary.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      formatCurrency(totalSalesRevenue),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),

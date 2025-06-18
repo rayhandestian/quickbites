@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 import '../models/order_model.dart';
-import '../services/auth_service.dart';
-import '../providers/menu_provider.dart';
 import '../utils/constants.dart';
 
 class OrderProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<OrderModel> _orders = [];
   bool _isLoading = false;
+  
+  // Track next order number per tenant
+  Map<String, int> _nextOrderNumberByTenant = {};
 
   List<OrderModel> get orders => _orders;
   bool get isLoading => _isLoading;
@@ -50,6 +50,25 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
+  // Get next order number for a specific tenant
+  int _getNextOrderNumberForTenant(String tenantId) {
+    // Initialize tenant order counter if not exists
+    if (!_nextOrderNumberByTenant.containsKey(tenantId)) {
+      // Find the highest order number for this tenant and increment it
+      int maxOrderNumber = 0;
+      for (var order in _orders) {
+        // We need to find orders for this tenant by checking the menu
+        // For now, we'll use a simple approach and assume the order number is per tenant
+        if (order.orderNumber != null && order.orderNumber! > maxOrderNumber) {
+          maxOrderNumber = order.orderNumber!;
+        }
+      }
+      _nextOrderNumberByTenant[tenantId] = maxOrderNumber + 1;
+    }
+    
+    return _nextOrderNumberByTenant[tenantId]!;
+  }
+
   // Load orders from Firestore
   Future<void> loadOrders() async {
     _isLoading = true;
@@ -59,16 +78,22 @@ class OrderProvider with ChangeNotifier {
       final querySnapshot = await _firestore.collection('orders').get();
       
       _orders = querySnapshot.docs.map((doc) {
+        final data = doc.data();
         return OrderModel(
           id: doc.id,
-          buyerId: doc['buyerId'],
-          menuId: doc['menuId'],
-          quantity: doc['quantity'],
-          customNote: doc['customNote'],
-          status: doc['status'],
-          timestamp: (doc['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          buyerId: data['buyerId'] ?? '',
+          menuId: data['menuId'] ?? '',
+          quantity: data['quantity'] ?? 0,
+          customNote: data['customNote'],
+          status: data['status'] ?? 'dibuat',
+          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          // Handle backward compatibility - if orderNumber doesn't exist, it will be null
+          orderNumber: data.containsKey('orderNumber') ? data['orderNumber'] : null,
         );
       }).toList();
+      
+      // Update the order number counters based on loaded orders
+      _updateOrderNumberCounters();
     } catch (e) {
       print('Error loading orders: $e');
       // If there's an error, use mock data for testing
@@ -79,12 +104,37 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Add a new order
-  Future<void> addOrder(OrderModel order) async {
+  // Update order number counters based on existing orders
+  void _updateOrderNumberCounters() {
+    _nextOrderNumberByTenant.clear();
+    // Group orders by tenant and find max order number for each
+    Map<String, int> maxOrderByTenant = {};
+    
+    for (var order in _orders) {
+      if (order.orderNumber != null) {
+        String tenantKey = 'tenant_${order.menuId}'; // Simplified tenant identification
+        int currentMax = maxOrderByTenant[tenantKey] ?? 0;
+        if (order.orderNumber! > currentMax) {
+          maxOrderByTenant[tenantKey] = order.orderNumber!;
+        }
+      }
+    }
+    
+    // Set next order number for each tenant
+    maxOrderByTenant.forEach((tenantKey, maxOrder) {
+      _nextOrderNumberByTenant[tenantKey] = maxOrder + 1;
+    });
+  }
+
+  // Add a new order with incremental number per tenant
+  Future<void> addOrder(OrderModel order, {String? tenantId}) async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      // Get next incremental order number for this tenant
+      final orderNumber = tenantId != null ? _getNextOrderNumberForTenant(tenantId) : 1;
+      
       final orderData = {
         'buyerId': order.buyerId,
         'menuId': order.menuId,
@@ -92,18 +142,36 @@ class OrderProvider with ChangeNotifier {
         'customNote': order.customNote,
         'status': order.status,
         'timestamp': FieldValue.serverTimestamp(),
+        'orderNumber': orderNumber,
       };
       
       final docRef = await _firestore.collection('orders').add(orderData);
       
-      // Add to local list with the generated Firestore ID
-      final newOrder = order.copyWith(id: docRef.id);
+      // Add to local list with the incremental order number
+      final newOrder = order.copyWith(
+        id: docRef.id,
+        orderNumber: orderNumber,
+      );
       _orders.add(newOrder);
+      
+      // Update the next order number for this tenant
+      if (tenantId != null) {
+        _nextOrderNumberByTenant[tenantId] = orderNumber + 1;
+      }
       
     } catch (e) {
       print('Error adding order: $e');
       // For demo purposes, still add to local list even if Firestore fails
-      _orders.add(order);
+      final orderNumber = tenantId != null ? _getNextOrderNumberForTenant(tenantId) : 1;
+      final newOrder = order.copyWith(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        orderNumber: orderNumber,
+      );
+      _orders.add(newOrder);
+      
+      if (tenantId != null) {
+        _nextOrderNumberByTenant[tenantId] = orderNumber + 1;
+      }
     }
 
     _isLoading = false;
@@ -143,6 +211,7 @@ class OrderProvider with ChangeNotifier {
   // Load mock orders for testing when Firestore is not available
   void _loadMockOrders() {
     _orders = [
+      // New orders with orderNumber
       OrderModel(
         id: '1',
         buyerId: 'buyer1',
@@ -151,6 +220,7 @@ class OrderProvider with ChangeNotifier {
         customNote: 'Nasi nya dipisah dan sambalnya sedikit saja',
         status: 'dibuat',
         timestamp: DateTime.now().subtract(const Duration(hours: 1)),
+        orderNumber: 1,
       ),
       OrderModel(
         id: '2',
@@ -160,6 +230,7 @@ class OrderProvider with ChangeNotifier {
         customNote: 'Sambal dicampur saja',
         status: 'siap',
         timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+        orderNumber: 2,
       ),
       OrderModel(
         id: '3',
@@ -169,8 +240,32 @@ class OrderProvider with ChangeNotifier {
         customNote: 'Tidak pakai sambal',
         status: 'dibuat',
         timestamp: DateTime.now().subtract(const Duration(hours: 3)),
+        orderNumber: 3,
+      ),
+      // Legacy orders without orderNumber (will show 0)
+      OrderModel(
+        id: 'legacy1',
+        buyerId: 'buyer1',
+        menuId: 'menu1',
+        quantity: 1,
+        customNote: 'Pesanan lama tanpa nomor urut',
+        status: 'selesai',
+        timestamp: DateTime.now().subtract(const Duration(days: 1)),
+        orderNumber: null, // Legacy order without orderNumber
+      ),
+      OrderModel(
+        id: 'legacy2',
+        buyerId: 'buyer2',
+        menuId: 'menu4',
+        quantity: 2,
+        status: 'selesai',
+        timestamp: DateTime.now().subtract(const Duration(days: 2)),
+        orderNumber: null, // Legacy order without orderNumber
       ),
     ];
+    
+    // Update counters based on mock data
+    _updateOrderNumberCounters();
   }
 
   // Get orders by tenant (for seller)

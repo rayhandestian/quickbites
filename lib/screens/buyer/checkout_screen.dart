@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/menu_model.dart';
-import '../../models/order_model.dart';
 import '../../providers/menu_provider.dart';
-import '../../providers/order_provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/app_button.dart';
 import 'payment_screen.dart';
@@ -23,7 +21,6 @@ class CheckoutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final menuProvider = Provider.of<MenuProvider>(context);
-    final orderProvider = Provider.of<OrderProvider>(context);
 
     final MenuModel? menu = menuProvider.getMenuById(menuId);
 
@@ -72,6 +69,7 @@ class CheckoutScreen extends StatelessWidget {
                       quantity: quantity,
                       customNote: customNote,
                       totalPrice: totalPrice,
+                      tenantId: menu.tenantId,
                     ),
                   ),
                 );

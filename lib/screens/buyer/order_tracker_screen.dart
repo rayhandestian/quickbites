@@ -97,7 +97,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Nomor Urutan: ${order.id.substring(0, 2)}',
+                              'Nomor Urutan: ${order.orderNumber ?? 0}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -222,7 +222,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     switch (status) {
       case 'dikirim':
         color = Colors.orange;
-        label = 'Pesanan Dikirim';
+        label = 'Pesanan Diterima';
         break;
       case 'dibuat':
         color = Colors.blue;
@@ -234,7 +234,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
         break;
       case 'selesai':
         color = Colors.grey;
-        label = 'Selesai';
+        label = 'Histori';
         break;
       default:
         color = Colors.orange;
@@ -336,7 +336,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
           // Order Number
           Center(
             child: Text(
-              'Nomor Urutan: ${widget.order.id.substring(0, 2)}',
+              'Nomor Urutan: ${widget.order.orderNumber ?? 0}',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,

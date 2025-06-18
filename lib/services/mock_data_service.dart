@@ -120,6 +120,7 @@ class MockDataService {
         quantity: 2,
         status: OrderStatus.created,
         timestamp: now.subtract(const Duration(hours: 1)),
+        orderNumber: 1,
       ),
       OrderModel(
         id: 'order2',
@@ -129,6 +130,7 @@ class MockDataService {
         customNote: 'Tanpa dressing',
         status: OrderStatus.ready,
         timestamp: now.subtract(const Duration(minutes: 45)),
+        orderNumber: 1,
       ),
       OrderModel(
         id: 'order3',
@@ -137,6 +139,7 @@ class MockDataService {
         quantity: 3,
         status: OrderStatus.completed,
         timestamp: now.subtract(const Duration(minutes: 30)),
+        orderNumber: 2,
       ),
     ];
   }
