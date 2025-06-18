@@ -79,17 +79,21 @@ class OrderProvider with ChangeNotifier {
       
       _orders = querySnapshot.docs.map((doc) {
         final data = doc.data();
-        return OrderModel(
-          id: doc.id,
-          buyerId: data['buyerId'] ?? '',
-          menuId: data['menuId'] ?? '',
-          quantity: data['quantity'] ?? 0,
-          customNote: data['customNote'],
-          status: data['status'] ?? 'dibuat',
-          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          // Handle backward compatibility - if orderNumber doesn't exist, it will be null
-          orderNumber: data.containsKey('orderNumber') ? data['orderNumber'] : null,
-        );
+        // Add the document ID to the data map
+        final dataWithId = Map<String, dynamic>.from(data);
+        dataWithId['id'] = doc.id;
+        
+        // Convert Firestore timestamp to string for fromMap
+        if (data['timestamp'] != null) {
+          dataWithId['timestamp'] = (data['timestamp'] as Timestamp).toDate().toIso8601String();
+        }
+        
+        // Debug: Print rejection reason if it exists
+        if (data['rejectionReason'] != null) {
+          print('Found rejection reason in Firestore: ${data['rejectionReason']}');
+        }
+        
+        return OrderModel.fromMap(dataWithId);
       }).toList();
       
       // Update the order number counters based on loaded orders
@@ -310,6 +314,7 @@ class OrderProvider with ChangeNotifier {
 
   // Load mock orders for testing when Firestore is not available
   void _loadMockOrders() {
+    print('Loading mock orders...');
     _orders = [
       // New orders with orderNumber
       OrderModel(
@@ -378,6 +383,9 @@ class OrderProvider with ChangeNotifier {
           orderNumber: null, // Legacy order without orderNumber
         ),
     ];
+    
+    print('Mock orders loaded: ${_orders.length}');
+    print('Rejected orders with reasons: ${_orders.where((o) => o.status == OrderStatus.rejected && o.rejectionReason != null).map((o) => "ID: ${o.id}, Reason: ${o.rejectionReason}").join(", ")}');
     
     // Update counters based on mock data
     _updateOrderNumberCounters();

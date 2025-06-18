@@ -38,18 +38,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Debug info - remove this in production
-          if (userOrders.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              color: Colors.grey[100],
-              child: Text(
-                'Debug: ${userOrders.length} orders loaded. Rejected orders: ${userOrders.where((o) => o.status == OrderStatus.rejected).length}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-            ),
+
           
           Expanded(
             child: userOrders.isEmpty
