@@ -584,7 +584,7 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
   String _getStatusText(String status) {
     switch (status) {
       case OrderStatus.sent:
-        return 'Baru';
+        return 'Dipesan';
       case OrderStatus.created:
         return 'Diterima';
       case OrderStatus.ready:

@@ -222,7 +222,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     switch (status) {
       case 'dikirim':
         color = Colors.orange;
-        label = 'Pesanan Diterima';
+        label = 'Dipesan';
         break;
       case 'dibuat':
         color = Colors.blue;
@@ -541,7 +541,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Dikirim',
+              'Dipesan',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,

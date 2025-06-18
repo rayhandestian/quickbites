@@ -88,7 +88,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
           isScrollable: false,
           labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           tabs: const [
-            Tab(text: 'Baru'),
+            Tab(text: 'Dipesan'),
             Tab(text: 'Diproses'),
             Tab(text: 'Siap'),
             Tab(text: 'Histori'),
@@ -331,7 +331,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
   String _getStatusText(String status) {
     switch (status) {
       case OrderStatus.sent:
-        return 'Pesanan Baru';
+        return 'Dipesan';
       case OrderStatus.created:
         return 'Pesanan Diterima';
       case OrderStatus.ready:

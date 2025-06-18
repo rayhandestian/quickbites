@@ -310,7 +310,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
                     'Menu Aktif',
                     totalMenuItems.toString(),
                     Icons.restaurant_menu,
-                    Colors.green,
+                    AppColors.success,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -319,7 +319,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
                     'Pesanan Baru',
                     pendingOrders.toString(),
                     Icons.new_releases,
-                    Colors.orange,
+                    AppColors.warning,
                   ),
                 ),
               ],
@@ -342,7 +342,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
               'Pesanan Dibuat',
               pendingOrders,
               Icons.hourglass_empty,
-              Colors.orange,
+              AppColors.warning,
             ),
             const SizedBox(height: 8),
             
@@ -350,7 +350,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
               'Siap Diambil',
               readyOrders,
               Icons.check_circle_outline,
-              Colors.blue,
+              AppColors.primaryAccent,
             ),
             const SizedBox(height: 8),
             
@@ -358,7 +358,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
               'Histori',
               completedOrders,
               Icons.done_all,
-              Colors.green,
+              AppColors.success,
             ),
           ],
         ),
@@ -393,9 +393,13 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
     
     return Card(
       elevation: 2,
-      color: AppColors.primaryAccent.withOpacity(0.1),
+      color: AppColors.secondarySurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: AppColors.primaryAccent.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -523,6 +527,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
   Widget _buildOrderStatusCard(String title, int count, IconData icon, Color color) {
     return Card(
       elevation: 0,
+      color: AppColors.secondarySurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
