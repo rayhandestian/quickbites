@@ -10,6 +10,7 @@ class OrderModel {
   final String? rejectionReason; // New field for rejection reason
   final int? estimatedMinutes; // New field for estimated completion time in minutes
   final DateTime? estimatedCompletionTime; // Calculated field for estimated completion
+  final String? tenantId; // New field to directly store tenant ID
 
   OrderModel({
     required this.id,
@@ -23,6 +24,7 @@ class OrderModel {
     this.rejectionReason,
     this.estimatedMinutes,
     this.estimatedCompletionTime,
+    this.tenantId,
   });
 
   factory OrderModel.fromMap(Map<String, dynamic> map) {
@@ -42,6 +44,7 @@ class OrderModel {
       estimatedCompletionTime: map['estimatedCompletionTime'] != null
         ? DateTime.parse(map['estimatedCompletionTime'])
         : null,
+      tenantId: map['tenantId'],
     );
   }
 
@@ -58,6 +61,7 @@ class OrderModel {
       'rejectionReason': rejectionReason,
       'estimatedMinutes': estimatedMinutes,
       'estimatedCompletionTime': estimatedCompletionTime?.toIso8601String(),
+      'tenantId': tenantId,
     };
   }
 
@@ -73,6 +77,7 @@ class OrderModel {
     String? rejectionReason,
     int? estimatedMinutes,
     DateTime? estimatedCompletionTime,
+    String? tenantId,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -86,6 +91,7 @@ class OrderModel {
       rejectionReason: rejectionReason ?? this.rejectionReason,
       estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
       estimatedCompletionTime: estimatedCompletionTime ?? this.estimatedCompletionTime,
+      tenantId: tenantId ?? this.tenantId,
     );
   }
 } 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/order_model.dart';
+import '../models/menu_model.dart';
 import '../utils/constants.dart';
 
 class OrderProvider with ChangeNotifier {
@@ -10,6 +11,9 @@ class OrderProvider with ChangeNotifier {
   
   // Track next order number per tenant
   Map<String, int> _nextOrderNumberByTenant = {};
+  
+  // Cache menu data to get tenant information
+  Map<String, String> _menuToTenantMap = {};
 
   List<OrderModel> get orders => _orders;
   bool get isLoading => _isLoading;
@@ -53,18 +57,37 @@ class OrderProvider with ChangeNotifier {
   }
 
   // Get next order number for a specific tenant
-  int _getNextOrderNumberForTenant(String tenantId) {
+  Future<int> _getNextOrderNumberForTenant(String tenantId) async {
     // Initialize tenant order counter if not exists
     if (!_nextOrderNumberByTenant.containsKey(tenantId)) {
-      // Find the highest order number for this tenant and increment it
+      // Find the highest order number for this tenant by checking all orders
       int maxOrderNumber = 0;
+      
+      // Get all menus for this tenant first
+      List<String> tenantMenuIds = [];
+      try {
+        final menuQuery = await _firestore
+            .collection('menus')
+            .where('tenantId', isEqualTo: tenantId)
+            .get();
+        
+        tenantMenuIds = menuQuery.docs.map((doc) => doc.id).toList();
+        
+        // Update menu to tenant mapping
+        for (var doc in menuQuery.docs) {
+          _menuToTenantMap[doc.id] = tenantId;
+        }
+      } catch (e) {
+        print('Error fetching menus for tenant $tenantId: $e');
+      }
+      
+      // Find max order number for orders of this tenant's menus
       for (var order in _orders) {
-        // We need to find orders for this tenant by checking the menu
-        // For now, we'll use a simple approach and assume the order number is per tenant
-        if (order.orderNumber != null && order.orderNumber! > maxOrderNumber) {
+        if (tenantMenuIds.contains(order.menuId) && order.orderNumber != null && order.orderNumber! > maxOrderNumber) {
           maxOrderNumber = order.orderNumber!;
         }
       }
+      
       _nextOrderNumberByTenant[tenantId] = maxOrderNumber + 1;
     }
     
@@ -99,11 +122,11 @@ class OrderProvider with ChangeNotifier {
       }).toList();
       
       // Update the order number counters based on loaded orders
-      _updateOrderNumberCounters();
+      await _updateOrderNumberCounters();
     } catch (e) {
       print('Error loading orders: $e');
       // If there's an error, use mock data for testing
-      _loadMockOrders();
+      await _loadMockOrders();
     }
 
     _isLoading = false;
@@ -111,24 +134,42 @@ class OrderProvider with ChangeNotifier {
   }
 
   // Update order number counters based on existing orders
-  void _updateOrderNumberCounters() {
+  Future<void> _updateOrderNumberCounters() async {
     _nextOrderNumberByTenant.clear();
+    
+    // First, build the menu to tenant mapping
+    try {
+      final menuQuery = await _firestore.collection('menus').get();
+      _menuToTenantMap.clear();
+      
+      for (var doc in menuQuery.docs) {
+        final data = doc.data();
+        if (data['tenantId'] != null) {
+          _menuToTenantMap[doc.id] = data['tenantId'];
+        }
+      }
+    } catch (e) {
+      print('Error fetching menu data: $e');
+    }
+    
     // Group orders by tenant and find max order number for each
     Map<String, int> maxOrderByTenant = {};
     
     for (var order in _orders) {
       if (order.orderNumber != null) {
-        String tenantKey = 'tenant_${order.menuId}'; // Simplified tenant identification
-        int currentMax = maxOrderByTenant[tenantKey] ?? 0;
-        if (order.orderNumber! > currentMax) {
-          maxOrderByTenant[tenantKey] = order.orderNumber!;
+        String? tenantId = _menuToTenantMap[order.menuId];
+        if (tenantId != null) {
+          int currentMax = maxOrderByTenant[tenantId] ?? 0;
+          if (order.orderNumber! > currentMax) {
+            maxOrderByTenant[tenantId] = order.orderNumber!;
+          }
         }
       }
     }
     
     // Set next order number for each tenant
-    maxOrderByTenant.forEach((tenantKey, maxOrder) {
-      _nextOrderNumberByTenant[tenantKey] = maxOrder + 1;
+    maxOrderByTenant.forEach((tenantId, maxOrder) {
+      _nextOrderNumberByTenant[tenantId] = maxOrder + 1;
     });
   }
 
@@ -139,7 +180,25 @@ class OrderProvider with ChangeNotifier {
 
     try {
       // Get next incremental order number for this tenant
-      final orderNumber = tenantId != null ? _getNextOrderNumberForTenant(tenantId) : 1;
+      int orderNumber = 1;
+      if (tenantId != null) {
+        orderNumber = await _getNextOrderNumberForTenant(tenantId);
+      } else {
+        // If no tenantId provided, try to get it from menu data
+        try {
+          final menuDoc = await _firestore.collection('menus').doc(order.menuId).get();
+          if (menuDoc.exists) {
+            final menuData = menuDoc.data();
+            if (menuData != null && menuData['tenantId'] != null) {
+              tenantId = menuData['tenantId'] as String;
+              orderNumber = await _getNextOrderNumberForTenant(tenantId!);
+              _menuToTenantMap[order.menuId] = tenantId!;
+            }
+          }
+        } catch (e) {
+          print('Error fetching menu data for order: $e');
+        }
+      }
       
       final orderData = {
         'buyerId': order.buyerId,
@@ -149,14 +208,16 @@ class OrderProvider with ChangeNotifier {
         'status': order.status,
         'timestamp': FieldValue.serverTimestamp(),
         'orderNumber': orderNumber,
+        'tenantId': tenantId, // Store tenant ID directly in order for easier querying
       };
       
       final docRef = await _firestore.collection('orders').add(orderData);
       
-      // Add to local list with the incremental order number
+      // Add to local list with the incremental order number and tenantId
       final newOrder = order.copyWith(
         id: docRef.id,
         orderNumber: orderNumber,
+        tenantId: tenantId,
       );
       _orders.add(newOrder);
       
@@ -168,16 +229,18 @@ class OrderProvider with ChangeNotifier {
     } catch (e) {
       print('Error adding order: $e');
       // For demo purposes, still add to local list even if Firestore fails
-      final orderNumber = tenantId != null ? _getNextOrderNumberForTenant(tenantId) : 1;
+      int orderNumber = 1;
+      if (tenantId != null) {
+        orderNumber = await _getNextOrderNumberForTenant(tenantId);
+        _nextOrderNumberByTenant[tenantId] = orderNumber + 1;
+      }
+      
       final newOrder = order.copyWith(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         orderNumber: orderNumber,
+        tenantId: tenantId,
       );
       _orders.add(newOrder);
-      
-      if (tenantId != null) {
-        _nextOrderNumberByTenant[tenantId] = orderNumber + 1;
-      }
     }
 
     _isLoading = false;
@@ -315,7 +378,7 @@ class OrderProvider with ChangeNotifier {
   }
 
   // Load mock orders for testing when Firestore is not available
-  void _loadMockOrders() {
+  Future<void> _loadMockOrders() async {
     print('Loading mock orders...');
     _orders = [
       // New orders with orderNumber
@@ -390,12 +453,24 @@ class OrderProvider with ChangeNotifier {
     print('Rejected orders with reasons: ${_orders.where((o) => o.status == OrderStatus.rejected && o.rejectionReason != null).map((o) => "ID: ${o.id}, Reason: ${o.rejectionReason}").join(", ")}');
     
     // Update counters based on mock data
-    _updateOrderNumberCounters();
+    await _updateOrderNumberCounters();
   }
 
-  // Get orders by tenant (for seller)
-  List<OrderModel> getOrdersByTenant(String tenantId, List<String> menuIds) {
-    return _orders.where((order) => menuIds.contains(order.menuId)).toList();
+  // Get orders by tenant (for seller) - now uses tenantId directly
+  List<OrderModel> getOrdersByTenant(String tenantId, [List<String>? menuIds]) {
+    return _orders.where((order) {
+      // First try to use the tenantId field if available
+      if (order.tenantId != null) {
+        return order.tenantId == tenantId;
+      }
+      // Fallback to menu-based filtering for legacy orders
+      if (menuIds != null) {
+        return menuIds.contains(order.menuId);
+      }
+      // If no tenantId and no menuIds provided, check cached mapping
+      return _menuToTenantMap[order.menuId] == tenantId;
+    }).toList()
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp)); // Sort by newest first
   }
 
   // Get active orders (not completed)
@@ -404,5 +479,54 @@ class OrderProvider with ChangeNotifier {
       order.buyerId == buyerId && 
       order.status != OrderStatus.completed
     ).toList();
+  }
+
+  // Helper method to migrate existing orders to include tenantId
+  Future<void> migrateOrdersWithTenantId() async {
+    print('Starting migration of orders to include tenantId...');
+    
+    try {
+      // Get all orders without tenantId
+      final ordersToMigrate = _orders.where((order) => order.tenantId == null).toList();
+      
+      if (ordersToMigrate.isEmpty) {
+        print('No orders need migration');
+        return;
+      }
+      
+      print('Found ${ordersToMigrate.length} orders to migrate');
+      
+      // Build menu to tenant mapping if not already done
+      if (_menuToTenantMap.isEmpty) {
+        await _updateOrderNumberCounters();
+      }
+      
+      // Update each order
+      for (var order in ordersToMigrate) {
+        final tenantId = _menuToTenantMap[order.menuId];
+        if (tenantId != null) {
+          try {
+            await _firestore.collection('orders').doc(order.id).update({
+              'tenantId': tenantId,
+            });
+            
+            // Update local order
+            final index = _orders.indexWhere((o) => o.id == order.id);
+            if (index != -1) {
+              _orders[index] = order.copyWith(tenantId: tenantId);
+            }
+            
+            print('Migrated order ${order.id} to tenant $tenantId');
+          } catch (e) {
+            print('Error migrating order ${order.id}: $e');
+          }
+        }
+      }
+      
+      print('Migration completed');
+      notifyListeners();
+    } catch (e) {
+      print('Error during migration: $e');
+    }
   }
 } 
