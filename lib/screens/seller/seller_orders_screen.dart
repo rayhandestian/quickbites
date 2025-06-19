@@ -142,6 +142,7 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> with SingleTick
     return RefreshIndicator(
       onRefresh: () async {
         await Provider.of<OrderProvider>(context, listen: false).loadOrders();
+        await Provider.of<MenuProvider>(context, listen: false).loadMenus();
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(16),

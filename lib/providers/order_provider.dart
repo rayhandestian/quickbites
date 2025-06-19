@@ -20,11 +20,13 @@ class OrderProvider with ChangeNotifier {
   }
 
   // Get current user's orders
-  List<OrderModel> getUserOrders() {
+  List<OrderModel> getUserOrders(String? currentUserId) {
+    if (currentUserId == null) {
+      return [];
+    }
+    
     return _orders.where((order) {
-      // Here we'd normally filter by the current user's ID
-      // For demo purposes, we're returning all orders
-      return true; // In a real app, you'd check against the current user ID
+      return order.buyerId == currentUserId;
     }).toList()..sort((a, b) => b.timestamp.compareTo(a.timestamp)); // Sort by newest first
   }
 

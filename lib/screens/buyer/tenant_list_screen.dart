@@ -29,18 +29,34 @@ class TenantListScreen extends StatelessWidget {
     final tenants = tenantProvider.tenants;
 
     if (tenants.isEmpty) {
-      return const Center(
-        child: Text('Tidak ada tenant tersedia'),
+      return RefreshIndicator(
+        onRefresh: () async {
+          await Provider.of<TenantProvider>(context, listen: false).loadTenants();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height - 200,
+            child: const Center(
+              child: Text('Tidak ada tenant tersedia'),
+            ),
+          ),
+        ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: tenants.length,
-      itemBuilder: (context, index) {
-        final tenant = tenants[index];
-        return _buildTenantCard(context, tenant);
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Provider.of<TenantProvider>(context, listen: false).loadTenants();
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: tenants.length,
+        itemBuilder: (context, index) {
+          final tenant = tenants[index];
+          return _buildTenantCard(context, tenant);
+        },
+      ),
     );
   }
 

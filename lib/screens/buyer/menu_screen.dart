@@ -103,109 +103,134 @@ class _MenuScreenState extends State<MenuScreen> {
     final allMenus = menuProvider.menus;
     
     return Scaffold(
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: allMenus.length,
-        itemBuilder: (context, index) {
-          final menu = allMenus[index];
-          return _buildMenuListItem(context, menu);
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Provider.of<MenuProvider>(context, listen: false).loadMenus();
+          await Provider.of<TenantProvider>(context, listen: false).loadTenants();
         },
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: allMenus.length,
+          itemBuilder: (context, index) {
+            final menu = allMenus[index];
+            return _buildMenuListItem(context, menu);
+          },
+        ),
       ),
     );
   }
   
   Widget _buildTenantMenuList(BuildContext context, TenantModel tenant, List<MenuModel> menus) {
     if (menus.isEmpty) {
-      return const Center(
-        child: Text('Tidak ada menu tersedia untuk tenant ini'),
+      return RefreshIndicator(
+        onRefresh: () async {
+          await Provider.of<MenuProvider>(context, listen: false).loadMenus();
+          await Provider.of<TenantProvider>(context, listen: false).loadTenants();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height - 200,
+            child: const Center(
+              child: Text('Tidak ada menu tersedia untuk tenant ini'),
+            ),
+          ),
+        ),
       );
     }
     
     final foodItems = menus.where((menu) => menu.category == FoodCategories.food).toList();
     final beverageItems = menus.where((menu) => menu.category == FoodCategories.beverage).toList();
     
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Tenant Description
-            if (tenant.description != null && tenant.description!.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.secondarySurface,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Tentang',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Provider.of<MenuProvider>(context, listen: false).loadMenus();
+        await Provider.of<TenantProvider>(context, listen: false).loadTenants();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tenant Description
+              if (tenant.description != null && tenant.description!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondarySurface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tentang',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tenant.description!,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textPrimary.withOpacity(0.7),
+                      const SizedBox(height: 4),
+                      Text(
+                        tenant.description!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary.withOpacity(0.7),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            
-            const SizedBox(height: 24),
-            
-            // Food Category
-            if (foodItems.isNotEmpty) ...[
-              const Text(
-                'Makanan',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: foodItems.length,
-                itemBuilder: (context, index) {
-                  return _buildMenuListItem(context, foodItems[index]);
-                },
-              ),
+              
               const SizedBox(height: 24),
-            ],
-            
-            // Beverage Category
-            if (beverageItems.isNotEmpty) ...[
-              const Text(
-                'Minuman',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              
+              // Food Category
+              if (foodItems.isNotEmpty) ...[
+                const Text(
+                  'Makanan',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: beverageItems.length,
-                itemBuilder: (context, index) {
-                  return _buildMenuListItem(context, beverageItems[index]);
-                },
-              ),
+                const SizedBox(height: 12),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: foodItems.length,
+                  itemBuilder: (context, index) {
+                    return _buildMenuListItem(context, foodItems[index]);
+                  },
+                ),
+                const SizedBox(height: 24),
+              ],
+              
+              // Beverage Category
+              if (beverageItems.isNotEmpty) ...[
+                const Text(
+                  'Minuman',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: beverageItems.length,
+                  itemBuilder: (context, index) {
+                    return _buildMenuListItem(context, beverageItems[index]);
+                  },
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

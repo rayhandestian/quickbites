@@ -5,7 +5,7 @@ import '../../models/order_model.dart';
 import '../../providers/menu_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/tenant_provider.dart';
-
+import '../../services/auth_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/app_button.dart';
 
@@ -31,8 +31,37 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
   Widget build(BuildContext context) {
     final orderProvider = Provider.of<OrderProvider>(context);
     final menuProvider = Provider.of<MenuProvider>(context);
+    final authService = Provider.of<AuthService>(context);
     
-    final List<OrderModel> userOrders = orderProvider.getUserOrders();
+    final List<OrderModel> userOrders = orderProvider.getUserOrders(authService.currentUser?.id);
+    
+    // Check if user is logged in
+    if (authService.currentUser == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.person_off_outlined,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Silakan login untuk melihat pesanan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     
     return Scaffold(
       backgroundColor: Colors.white,
