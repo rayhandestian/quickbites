@@ -10,6 +10,7 @@ import '../../utils/constants.dart';
 import 'menu_screen.dart';
 import 'order_tracker_screen.dart';
 import 'profile_screen.dart';
+import 'order_history_screen.dart';
 
 class BuyerHomeScreen extends StatefulWidget {
   // Add initial tab index parameter
@@ -127,6 +128,20 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
           _currentIndex == 1 ? 'Pesanan Saya' : 'Profil',
         ),
         automaticallyImplyLeading: false, // Remove back button
+        actions: [
+          if (_currentIndex == 1) // Only show on Order Tracker screen
+            IconButton(
+              icon: const Icon(Icons.history),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const OrderHistoryScreen(),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/menu_model.dart';
@@ -17,14 +18,30 @@ class OrderTrackerScreen extends StatefulWidget {
 }
 
 class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
-    // Refresh orders when screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<OrderProvider>(context, listen: false).loadOrders();
-      Provider.of<TenantProvider>(context, listen: false).loadTenants();
-    });
+    // Initial load
+    _loadData();
+    // Set up auto-refresh timer
+    _timer = Timer.periodic(const Duration(seconds: 15), (timer) => _loadData());
+  }
+
+  @override
+  void dispose() {
+    // Cancel the timer when the widget is disposed to prevent memory leaks
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    // Ensure providers are available before using them
+    if (mounted) {
+      await Provider.of<OrderProvider>(context, listen: false).loadOrders();
+      await Provider.of<TenantProvider>(context, listen: false).loadTenants();
+    }
   }
 
   @override
@@ -34,6 +51,16 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     final authService = Provider.of<AuthService>(context);
     
     final List<OrderModel> userOrders = orderProvider.getUserOrders(authService.currentUser?.id);
+
+    // Filter for active orders
+    final List<OrderModel> activeOrders = userOrders.where((order) {
+      return order.status == OrderStatus.sent ||
+             order.status == OrderStatus.created ||
+             order.status == OrderStatus.ready;
+    }).toList();
+
+    // Sort by timestamp, oldest first to show a logical progression
+    activeOrders.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     
     // Check if user is logged in
     if (authService.currentUser == null) {
@@ -67,267 +94,271 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-
-          
           Expanded(
-            child: userOrders.isEmpty
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Belum ada pesanan',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Pesanan Anda akan muncul di sini',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          )
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: userOrders.length,
-            itemBuilder: (context, index) {
-              final order = userOrders[index];
-              final menu = menuProvider.getMenuById(order.menuId);
-              
-              if (menu == null) {
-                return const SizedBox.shrink();
-              }
-              
-              return Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                margin: const EdgeInsets.only(bottom: 16),
-                child: InkWell(
-                  onTap: () {
-                    _showOrderDetailSheet(context, order, menu);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              child: activeOrders.isEmpty
+                  ? Stack(
                       children: [
-                        // Order ID and Status
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Nomor Urutan: ${order.orderNumber ?? 0}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                        ListView(), // Required for RefreshIndicator to work on empty list
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
                               ),
-                            ),
-                            _buildStatusChip(order.status),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        // Menu and Quantity
-                        Row(
-                          children: [
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryAccent.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: _isValidImageUrl(menu.imageUrl)
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      menu.imageUrl!,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : Icon(
-                                    menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
-                                    size: 30,
-                                    color: AppColors.primaryAccent,
-                                  ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    menu.name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Jumlah: ${order.quantity}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              formatCurrency(menu.price * order.quantity),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Estimated completion time or rejection reason
-                        if (order.status == OrderStatus.created && order.estimatedCompletionTime != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  size: 16,
-                                  color: Colors.blue,
+                              const SizedBox(height: 16),
+                              Text(
+                                'Belum ada pesanan aktif',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[600],
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Estimasi selesai: ${_formatTime(order.estimatedCompletionTime!)}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        
-                        if (order.status == OrderStatus.rejected)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.withOpacity(0.3)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.cancel,
-                                      size: 18,
-                                      color: Colors.red,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Pesanan ditolak penjual',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (order.rejectionReason != null && order.rejectionReason!.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Alasan: ${order.rejectionReason}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.red.withOpacity(0.8),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        
-                        const SizedBox(height: 8),
-                        const Divider(),
-                        const SizedBox(height: 8),
-                        
-                        // Order Date and Delete button (if rejected)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Dipesan pada: ${_formatDate(order.timestamp)}',
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tarik ke bawah untuk memuat ulang',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[600],
                                 ),
                               ),
-                            ),
-                            if (order.status == OrderStatus.rejected)
-                              TextButton.icon(
-                                onPressed: () {
-                                  _showDeleteOrderConfirmation(context, order.id);
-                                },
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  size: 16,
-                                  color: Colors.red,
-                                ),
-                                label: const Text(
-                                  'Hapus',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.red,
-                                  ),
-                                ),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: activeOrders.length,
+                      itemBuilder: (context, index) {
+                        final order = activeOrders[index];
+                        final menu = menuProvider.getMenuById(order.menuId);
+                        
+                        if (menu == null) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        return Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: InkWell(
+                            onTap: () {
+                              _showOrderDetailSheet(context, order, menu);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Order ID and Status
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Nomor Urutan: ${order.orderNumber ?? 0}',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      _buildStatusChip(order.status),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  
+                                  // Menu and Quantity
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 60,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryAccent.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: _isValidImageUrl(menu.imageUrl)
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Image.network(
+                                                menu.imageUrl!,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            )
+                                          : Icon(
+                                              menu.category == FoodCategories.food ? Icons.lunch_dining : Icons.local_drink,
+                                              size: 30,
+                                              color: AppColors.primaryAccent,
+                                            ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              menu.name,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Jumlah: ${order.quantity}',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        formatCurrency(menu.price * order.quantity),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primaryAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  
+                                  const SizedBox(height: 16),
+                                  
+                                  // Estimated completion time or rejection reason
+                                  if (order.status == OrderStatus.created && order.estimatedCompletionTime != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.access_time,
+                                            size: 16,
+                                            color: Colors.blue,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Estimasi selesai: ${_formatTime(order.estimatedCompletionTime!)}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  
+                                  if (order.status == OrderStatus.rejected)
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Row(
+                                            children: [
+                                              Icon(
+                                                Icons.cancel,
+                                                size: 18,
+                                                color: Colors.red,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Pesanan Ditolak',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.red,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (order.rejectionReason != null && order.rejectionReason!.isNotEmpty) ...[
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'Alasan: ${order.rejectionReason}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  
+                                  const SizedBox(height: 12),
+                                  
+                                  // Order Date and Delete button (if rejected)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Dipesan pada: ${_formatDate(order.timestamp)}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ),
+                                      if (order.status == OrderStatus.rejected)
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            _showDeleteOrderConfirmation(context, order.id);
+                                          },
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            size: 16,
+                                            color: Colors.red,
+                                          ),
+                                          label: const Text(
+                                            'Hapus',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
   
