@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../models/user_model.dart';
 import '../models/tenant_model.dart';
 import '../utils/constants.dart';
@@ -7,6 +8,7 @@ import 'package:bcrypt/bcrypt.dart';
 
 class AuthService with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   
   UserModel? _currentUser;
   bool _isLoading = false;
@@ -61,6 +63,27 @@ class AuthService with ChangeNotifier {
         'id': userDoc.id,
         ...userData,
       });
+
+      // Get and update FCM token
+      try {
+        final fcmToken = await _firebaseMessaging.getToken();
+        if (fcmToken != null) {
+          await _firestore.collection('users').doc(userDoc.id).update({
+            'fcmToken': fcmToken,
+          });
+          _currentUser = UserModel(
+            id: _currentUser!.id,
+            name: _currentUser!.name,
+            email: _currentUser!.email,
+            role: _currentUser!.role,
+            storeName: _currentUser!.storeName,
+            fcmToken: fcmToken,
+          );
+        }
+      } catch (e) {
+        print('Failed to get or update FCM token: $e');
+        // Continue without FCM token if it fails
+      }
       
       _isLoading = false;
       notifyListeners();
@@ -142,6 +165,17 @@ class AuthService with ChangeNotifier {
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
+
+    // Clear FCM token on logout
+    if (_currentUser != null) {
+      try {
+        await _firestore.collection('users').doc(_currentUser!.id).update({
+          'fcmToken': FieldValue.delete(),
+        });
+      } catch (e) {
+        print('Failed to clear FCM token: $e');
+      }
+    }
 
     _currentUser = null;
     

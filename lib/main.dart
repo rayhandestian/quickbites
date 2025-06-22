@@ -13,6 +13,10 @@ import 'providers/tenant_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'utils/theme.dart';
 import 'utils/constants.dart';
+import 'services/notification_service.dart';
+
+// Global navigator key
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +35,9 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     print('Firebase initialized successfully');
+
+    // Initialize notification service after Firebase is initialized
+    await NotificationService(navigatorKey: navigatorKey).initialize();
   } catch (e) {
     print('Failed to initialize Firebase: $e');
     // Continue with the app but functionality that depends on Firebase will be limited
@@ -56,6 +63,7 @@ class MyApp extends StatelessWidget {
         title: 'QuickBites',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.getTheme(),
+        navigatorKey: navigatorKey,
         home: const InitScreen(),
       ),
     );

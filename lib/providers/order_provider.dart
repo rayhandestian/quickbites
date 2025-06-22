@@ -178,25 +178,56 @@ class OrderProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    String? sellerId; // Variable to hold the seller ID
+    int? totalPrice; // Variable to hold the total price
+
     try {
       // Get next incremental order number for this tenant
       int orderNumber = 1;
-      if (tenantId != null) {
-        orderNumber = await _getNextOrderNumberForTenant(tenantId);
-      } else {
+      if (tenantId == null) {
         // If no tenantId provided, try to get it from menu data
         try {
           final menuDoc = await _firestore.collection('menus').doc(order.menuId).get();
           if (menuDoc.exists) {
             final menuData = menuDoc.data();
-            if (menuData != null && menuData['tenantId'] != null) {
-              tenantId = menuData['tenantId'] as String;
-              orderNumber = await _getNextOrderNumberForTenant(tenantId!);
-              _menuToTenantMap[order.menuId] = tenantId!;
+            if (menuData != null) {
+              if (menuData['tenantId'] != null) {
+                tenantId = menuData['tenantId'] as String;
+                _menuToTenantMap[order.menuId] = tenantId!;
+              }
+              if (menuData['price'] != null) {
+                totalPrice = (menuData['price'] as int) * order.quantity;
+              }
             }
           }
         } catch (e) {
           print('Error fetching menu data for order: $e');
+        }
+      } else {
+        // If tenantId is provided, still need to fetch menu for price
+        try {
+            final menuDoc = await _firestore.collection('menus').doc(order.menuId).get();
+            if (menuDoc.exists) {
+                final menuData = menuDoc.data();
+                if (menuData != null && menuData['price'] != null) {
+                    totalPrice = (menuData['price'] as int) * order.quantity;
+                }
+            }
+        } catch (e) {
+            print('Error fetching menu data for order: $e');
+        }
+      }
+
+      if (tenantId != null) {
+        orderNumber = await _getNextOrderNumberForTenant(tenantId);
+        // Get sellerId from the tenant
+        try {
+            final tenantDoc = await _firestore.collection('tenants').doc(tenantId).get();
+            if (tenantDoc.exists) {
+                sellerId = tenantDoc.data()?['sellerId'];
+            }
+        } catch(e) {
+            print('Could not fetch tenant to get sellerId: $e');
         }
       }
       
@@ -209,6 +240,8 @@ class OrderProvider with ChangeNotifier {
         'timestamp': FieldValue.serverTimestamp(),
         'orderNumber': orderNumber,
         'tenantId': tenantId, // Store tenant ID directly in order for easier querying
+        'sellerId': sellerId, // <-- THE FIX
+        'totalPrice': totalPrice, // <-- THE SECOND FIX
       };
       
       final docRef = await _firestore.collection('orders').add(orderData);
@@ -218,6 +251,7 @@ class OrderProvider with ChangeNotifier {
         id: docRef.id,
         orderNumber: orderNumber,
         tenantId: tenantId,
+        totalPrice: totalPrice,
       );
       _orders.add(newOrder);
       
@@ -239,6 +273,7 @@ class OrderProvider with ChangeNotifier {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         orderNumber: orderNumber,
         tenantId: tenantId,
+        totalPrice: totalPrice,
       );
       _orders.add(newOrder);
     }
@@ -253,9 +288,10 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestore.collection('orders').doc(orderId).update({
+      final orderRef = _firestore.collection('orders').doc(orderId);
+      await orderRef.set({
         'status': newStatus,
-      });
+      }, SetOptions(merge: true));
       
       // Update in local list
       final index = _orders.indexWhere((order) => order.id == orderId);
@@ -283,10 +319,10 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestore.collection('orders').doc(orderId).update({
+      await _firestore.collection('orders').doc(orderId).set({
         'status': OrderStatus.rejected,
         'rejectionReason': rejectionReason,
-      });
+      }, SetOptions(merge: true));
       
       // Update in local list
       final index = _orders.indexWhere((order) => order.id == orderId);
@@ -322,11 +358,11 @@ class OrderProvider with ChangeNotifier {
     try {
       final estimatedCompletionTime = DateTime.now().add(Duration(minutes: estimatedMinutes));
       
-      await _firestore.collection('orders').doc(orderId).update({
+      await _firestore.collection('orders').doc(orderId).set({
         'status': OrderStatus.created,
         'estimatedMinutes': estimatedMinutes,
         'estimatedCompletionTime': estimatedCompletionTime.toIso8601String(),
-      });
+      }, SetOptions(merge: true));
       
       // Update in local list
       final index = _orders.indexWhere((order) => order.id == orderId);

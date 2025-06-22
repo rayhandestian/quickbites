@@ -11,6 +11,7 @@ class OrderModel {
   final int? estimatedMinutes; // New field for estimated completion time in minutes
   final DateTime? estimatedCompletionTime; // Calculated field for estimated completion
   final String? tenantId; // New field to directly store tenant ID
+  final int? totalPrice;
 
   OrderModel({
     required this.id,
@@ -25,6 +26,7 @@ class OrderModel {
     this.estimatedMinutes,
     this.estimatedCompletionTime,
     this.tenantId,
+    this.totalPrice,
   });
 
   factory OrderModel.fromMap(Map<String, dynamic> map) {
@@ -45,6 +47,7 @@ class OrderModel {
         ? DateTime.parse(map['estimatedCompletionTime'])
         : null,
       tenantId: map['tenantId'],
+      totalPrice: map['totalPrice'],
     );
   }
 
@@ -62,6 +65,7 @@ class OrderModel {
       'estimatedMinutes': estimatedMinutes,
       'estimatedCompletionTime': estimatedCompletionTime?.toIso8601String(),
       'tenantId': tenantId,
+      'totalPrice': totalPrice,
     };
   }
 
@@ -78,6 +82,7 @@ class OrderModel {
     int? estimatedMinutes,
     DateTime? estimatedCompletionTime,
     String? tenantId,
+    int? totalPrice,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -92,6 +97,7 @@ class OrderModel {
       estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
       estimatedCompletionTime: estimatedCompletionTime ?? this.estimatedCompletionTime,
       tenantId: tenantId ?? this.tenantId,
+      totalPrice: totalPrice ?? this.totalPrice,
     );
   }
 } 
